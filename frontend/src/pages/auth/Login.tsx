@@ -154,29 +154,31 @@ const Login: React.FC = () => {
           </p>
         </div>
 
-        {/* Demo credentials */}
-        <div className="mt-4 card p-4 bg-amber-50 border-amber-200">
-          <p className="text-xs font-semibold text-amber-800 mb-2">Quick Login — Demo Accounts</p>
-          <div className="space-y-1.5">
-            {demoAccounts.map((account) => (
-              <label
-                key={account.role}
-                className="flex items-center gap-2 cursor-pointer group"
-              >
-                <input
-                  type="checkbox"
-                  checked={selectedDemo === account.role}
-                  onChange={() => handleDemoSelect(account)}
-                  className="w-3.5 h-3.5 rounded border-amber-400 text-amber-600 focus:ring-amber-500 cursor-pointer"
-                />
-                <span className="text-xs text-amber-700 group-hover:text-amber-900">
-                  <span className="font-medium">{account.role}</span>
-                  {' — '}{account.email}{' / '}{account.password}
-                </span>
-              </label>
-            ))}
+        {/* Demo credentials — development only */}
+        {import.meta.env.DEV && (
+          <div className="mt-4 card p-4 bg-amber-50 border-amber-200">
+            <p className="text-xs font-semibold text-amber-800 mb-2">Quick Login — Demo Accounts</p>
+            <div className="space-y-1.5">
+              {demoAccounts.map((account) => (
+                <label
+                  key={account.role}
+                  className="flex items-center gap-2 cursor-pointer group"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedDemo === account.role}
+                    onChange={() => handleDemoSelect(account)}
+                    className="w-3.5 h-3.5 rounded border-amber-400 text-amber-600 focus:ring-amber-500 cursor-pointer"
+                  />
+                  <span className="text-xs text-amber-700 group-hover:text-amber-900">
+                    <span className="font-medium">{account.role}</span>
+                    {' — '}{account.email}{' / '}{account.password}
+                  </span>
+                </label>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   )
