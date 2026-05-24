@@ -13,50 +13,66 @@ A multi-role web application for managing health insurance claims — from patie
 
 ## Tech Stack
 
-**Frontend:** React 18 + Vite + TypeScript + Tailwind CSS + Zustand + React Hook Form + Recharts  
-**Backend:** Node.js + Express + TypeScript + Prisma ORM + JWT + Multer  
-**Database:** SQLite (file-based, zero config)
+**Frontend:** React 18 + Vite + TypeScript + Tailwind CSS + Zustand + React Hook Form + Recharts
+**Backend:** Node.js + Express + TypeScript + Prisma ORM + JWT + Multer
+**Database:** PostgreSQL (Neon)
+**Package manager:** pnpm (workspaces monorepo)
 
 ## Prerequisites
 
 - **Node.js 18+** — check with `node --version`
-- **npm** — bundled with Node.js
-
-No database server, no Docker required. SQLite runs as a local file.
+- **pnpm** — install with `npm install -g pnpm`
+- **PostgreSQL database** — use [Neon](https://neon.tech) free tier or local PostgreSQL
 
 ## Quick Start
 
-Open **two terminals** in the project root.
+### 1. Install dependencies
 
-### Terminal 1 — Backend
+```bash
+pnpm install
+```
 
-```powershell
+### 2. Configure environment
+
+Copy the example env files and fill in your values:
+
+```bash
+cp .env.example .env
+cp backend/.env.example backend/.env
+```
+
+Set `DATABASE_URL` in `backend/.env` to your PostgreSQL connection string:
+
+```
+DATABASE_URL="postgresql://user:password@host/dbname?sslmode=require"
+```
+
+### 3. Run database migrations and seed
+
+```bash
 cd backend
-npm install
-npx prisma db push          # creates backend/dev.db
-npx tsx prisma/seed.ts      # loads demo users, policies & claims
-npm run dev                 # starts API on http://localhost:3001
+pnpm db:migrate
+pnpm db:seed
 ```
 
-### Terminal 2 — Frontend
+### 4. Start the app
 
-```powershell
-cd frontend
-npm install
-npm run dev                 # starts UI on http://localhost:5173
+From the repo root:
+
+```bash
+pnpm dev
 ```
 
-Then open **http://localhost:5173** in your browser.
+- Frontend: http://localhost:5173
+- Backend API: http://localhost:3001/api
+- Swagger docs: http://localhost:3001/api/docs
 
-> **Already installed?** Skip `npm install` — just run `npm run dev` in each terminal.
+> **Already set up?** Just run `pnpm dev` from the root.
 
 ### Resetting demo data
 
-To wipe and re-seed the database at any time:
-
-```powershell
-cd backend
-npx tsx prisma/seed.ts
+```bash
+cd backend && pnpm db:seed
 ```
 
 ## URLs
@@ -170,19 +186,19 @@ DRAFT → SUBMITTED → UNDER_REVIEW → APPROVED → PAID
 
 ## Environment Variables
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| DATABASE_URL | `file:./dev.db` | SQLite file path (relative to `backend/`) |
-| JWT_SECRET | set in `.env` | Min 32 chars, used to sign tokens |
-| JWT_EXPIRES_IN | `7d` | Token lifetime |
-| PORT | `3001` | Backend port |
-| UPLOAD_DIR | `uploads` | File storage directory |
-| SMTP_HOST | `smtp.ethereal.email` | Email server (optional) |
-| VITE_API_URL | `http://localhost:3001/api` | Frontend API base URL |
+| Variable | Description |
+|----------|-------------|
+| `DATABASE_URL` | PostgreSQL connection string |
+| `JWT_SECRET` | Min 32 chars, used to sign tokens |
+| `JWT_EXPIRES_IN` | Token lifetime (default `7d`) |
+| `PORT` | Backend port (default `3001`) |
+| `UPLOAD_DIR` | File storage directory (default `uploads`) |
+| `SMTP_HOST` | Email server (optional) |
+| `VITE_API_URL` | Frontend API base URL |
 
 ## Email
 
-Email is optional. Without SMTP config, emails are logged to the console (preview URL via Nodemailer Ethereal). To enable real email, set `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` in `.env`.
+Email is optional. Without SMTP config, emails are logged to the console. To enable real email, set `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` in `backend/.env`.
 
 ## Seeded Demo Data
 
@@ -190,3 +206,11 @@ Email is optional. Without SMTP config, emails are logged to the console (previe
 - All patients have the Standard policy assigned
 - Sample claims in all statuses: DRAFT, SUBMITTED, UNDER_REVIEW, APPROVED, PAID, REJECTED
 - Notifications and timeline events pre-populated for demo purposes
+
+## Hosting
+
+| Part | Service |
+|------|---------|
+| Frontend | [Vercel](https://vercel.com) |
+| Backend | [Render](https://render.com) (free tier — spins down after 15 min idle) |
+| Database | [Neon](https://neon.tech) (free PostgreSQL) |
