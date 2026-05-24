@@ -1,0 +1,279 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                 String    @id @default(cuid())
+  email              String    @unique
+  password           String
+  firstName          String
+  lastName           String
+  role               String    @default("PATIENT")
+  isActive           Boolean   @default(true)
+  specialty          String?
+  resetToken         String?
+  resetTokenExp      DateTime?
+  notificationPrefs  String    @default("{}")
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  patientClaims      Claim[]            @relation("PatientClaims")
+  adjusterClaims     Claim[]            @relation("AdjusterClaims")
+  assignedClaims     Claim[]            @relation("AssignedClaims")
+  claimEvents        ClaimEvent[]
+  infoRequests       InfoRequest[]      @relation("InfoRequestFrom")
+  notifications      Notification[]
+  auditLogs          AuditLog[]
+  userPolicies       UserPolicy[]
+  payouts            Payout[]
+  uploadedDocuments  Document[]
+
+
+}
+
+model Policy {
+  id                  String   @id @default(cuid())
+  name                String
+  type                String
+  description         String?
+  coverageAmount      Float
+  deductible          Float
+  copayPercentage     Float    @default(20)
+  oopMax              Float    @default(8000)
+  oonDeductible       Float    @default(0)
+  oonCopayPercent     Float    @default(0)
+  filingDeadlineDays  Int      @default(365)
+  effectiveDate       DateTime
+  expiryDate          DateTime
+  isActive            Boolean  @default(true)
+  benefits            String   @default("{}")
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  userPolicies    UserPolicy[]
+  claims          Claim[]
+
+}
+
+model UserPolicy {
+  id           String   @id @default(cuid())
+  userId       String
+  policyId     String
+  startDate    DateTime @default(now())
+  planYearType String   @default("CALENDAR")
+  payerOrder   String   @default("PRIMARY")
+  createdAt    DateTime @default(now())
+
+  user         User     @relation(fields: [userId], references: [id])
+  policy       Policy   @relation(fields: [policyId], references: [id])
+
+  @@unique([userId, policyId])
+}
+
+model Provider {
+  id           String   @id @default(cuid())
+  npi          String   @unique
+  name         String
+  providerType String
+  inNetwork    Boolean  @default(false)
+  specialty    String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  claims       Claim[]
+}
+
+model Claim {
+  id             String   @id @default(cuid())
+  claimNumber    String   @unique
+  patientId      String
+  adjusterId     String?
+  assignedAdjusterId String?
+  policyId       String
+  providerId     String?
+  networkStatus  String   @default("IN")
+  type           String
+  status         String   @default("DRAFT")
+  description    String
+  incidentDate   DateTime
+  totalAmount    Float
+  totalBilled    Float?
+  totalAllowed   Float?
+  eligibleAmount Float?
+  deductible     Float?
+  reimbursable    Float?
+  adjustedAmount  Float?
+  adjusterNotes  String?
+  appealReason   String?
+  originalAdjudicatorId   String?
+  fraudScore              Float?
+  fraudFlags              String?
+  planYearStart           DateTime?
+  filingDeadlineOverride  Boolean   @default(false)
+  cobFlag                 Boolean   @default(false)
+  diagnosisCodes          String    @default("[]")
+  secondaryClaimId        String?   @unique
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  patient           User         @relation("PatientClaims", fields: [patientId], references: [id])
+  adjuster          User?        @relation("AdjusterClaims", fields: [adjusterId], references: [id])
+  assignedAdjuster  User?        @relation("AssignedClaims", fields: [assignedAdjusterId], references: [id])
+  policy            Policy       @relation(fields: [policyId], references: [id])
+  provider          Provider?    @relation(fields: [providerId], references: [id])
+  documents      Document[]
+  events         ClaimEvent[]
+  infoRequests   InfoRequest[]
+  payout         Payout?
+  overpayments   Overpayment[]
+  cobDetail      CobDetail?
+  secondaryClaim Claim?         @relation("PrimarySecondary", fields: [secondaryClaimId], references: [id])
+  primaryClaim   Claim?         @relation("PrimarySecondary")
+  lines          ClaimLine[]
+}
+
+model ClaimLine {
+  id                  String   @id @default(cuid())
+  claimId             String
+  lineNumber          Int
+  cptCode             String
+  modifier            String?
+  diagnosisPointers   String   @default("[]")
+  units               Int      @default(1)
+  billedAmount        Float
+  allowedAmount       Float?
+  adjudicationStatus  String   @default("PENDING")
+  denialReason        String?
+  adjudicatorNote     String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  claim  Claim  @relation(fields: [claimId], references: [id], onDelete: Cascade)
+}
+
+model Document {
+  id                 String   @id @default(cuid())
+  claimId            String
+  filename           String
+  originalName       String
+  mimeType           String
+  size               Int
+  path               String
+  type               String   @default("DOCUMENT")
+  isSystemGenerated  Boolean  @default(false)
+  uploadedById       String?
+  createdAt          DateTime @default(now())
+
+  claim              Claim    @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  uploadedBy         User?    @relation(fields: [uploadedById], references: [id])
+}
+
+model ClaimEvent {
+  id         String   @id @default(cuid())
+  claimId    String
+  userId     String
+  action     String
+  fromStatus String?
+  toStatus   String?
+  note       String?
+  lineId     String?
+  createdAt  DateTime @default(now())
+
+  claim      Claim    @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id])
+}
+
+model InfoRequest {
+  id          String    @id @default(cuid())
+  claimId     String
+  fromId      String
+  message     String
+  response    String?
+  respondedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  claim       Claim     @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  from        User      @relation("InfoRequestFrom", fields: [fromId], references: [id])
+}
+
+model Payout {
+  id          String   @id @default(cuid())
+  claimId     String   @unique
+  processedBy String
+  amount      Float
+  paymentRef  String
+  batchRef    String?
+  notes       String?
+  paidAt      DateTime @default(now())
+
+  claim        Claim         @relation(fields: [claimId], references: [id])
+  processor    User          @relation(fields: [processedBy], references: [id])
+  overpayments Overpayment[]
+}
+
+model Overpayment {
+  id               String   @id @default(cuid())
+  claimId          String
+  originalPayoutId String
+  overpaidAmount   Float
+  reason           String
+  status           String   @default("IDENTIFIED")
+  waiverReason     String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  claim         Claim  @relation(fields: [claimId], references: [id])
+  originalPayout Payout @relation(fields: [originalPayoutId], references: [id])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  message   String
+  type      String   @default("info")
+  isRead    Boolean  @default(false)
+  link      String?
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  action     String
+  resource   String
+  resourceId String?
+  details    String?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  user       User?    @relation(fields: [userId], references: [id])
+}
+
+model SystemSetting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+model CobDetail {
+  id                   String    @id @default(cuid())
+  claimId              String    @unique
+  primaryInsurerName   String?
+  primaryPaidAmount    Float?
+  primaryEOBDate       DateTime?
+  patientResponsibility Float?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  claim  Claim  @relation(fields: [claimId], references: [id], onDelete: Cascade)
+}
