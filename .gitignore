@@ -50,3 +50,6 @@ desktop.ini
 .claude/
 .playwright-mcp/
 .mcp.json
+
+# Docs
+README.md
