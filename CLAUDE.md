@@ -10,9 +10,22 @@ and `frontend/` (React + Vite + Zustand). pnpm workspaces.
 - NEVER skip writing a test after a bug fix
 - NEVER change `prisma/schema.prisma` provider without also updating `DATABASE_URL` and migrating
 - NEVER edit both `backend/` and `frontend/` package.json in one step without confirming scope
+- NEVER push directly to `main` — always follow the Change Workflow below
 - ALWAYS run `pnpm db:migrate` from `backend/` after any schema change
 - ALWAYS trace the full data flow before touching code (frontend → route → service → DB)
 - TypeScript strict mode is on in both packages — run `tsc --noEmit` to verify before calling done
+
+---
+
+## Change Workflow
+
+Every code change — no matter how small — must follow these steps in order:
+
+1. **Branch** — `git checkout -b <type>/<short-description>` from `main`
+2. **Change** — make the edit; run `pnpm db:migrate` from `backend/` if schema changed
+3. **Verify** — run `tsc --noEmit` in the affected package(s); confirm ports 3001 / 5173 are up
+4. **PR** — push the branch and open a pull request describing what to test
+5. **User merges** — never merge or push to `main` yourself; merging the PR triggers production deploy
 
 ---
 
