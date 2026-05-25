@@ -3,7 +3,7 @@ services:
     name: health-claims-api
     env: node
     buildCommand: pnpm install && cd backend && npx prisma generate && pnpm build
-    startCommand: cd backend && npx prisma migrate deploy && node dist/index.js
+    startCommand: cd backend && npx prisma migrate resolve --rolled-back 20260525150803_init 2>/dev/null || true && npx prisma migrate deploy && node dist/index.js
     envVars:
       - key: NODE_ENV
         value: production
