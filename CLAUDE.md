@@ -8,10 +8,10 @@ and `frontend/` (React + Vite + Zustand). pnpm workspaces.
 ## Hard Rules
 
 - NEVER skip writing a test after a bug fix
-- NEVER change `prisma/schema.prisma` provider without also updating `DATABASE_URL` and migrating
+- NEVER change `prisma/schema.prisma` provider — it is permanently `sqlite` for local dev; Render swaps it to `postgresql` at build time
 - NEVER edit both `backend/` and `frontend/` package.json in one step without confirming scope
 - NEVER push directly to `main` — always follow the Change Workflow below
-- ALWAYS run `pnpm db:migrate` from `backend/` after any schema change
+- ALWAYS run `pnpm db:push` from `backend/` after any schema change (local dev uses db push, not migrate)
 - ALWAYS trace the full data flow before touching code (frontend → route → service → DB)
 - TypeScript strict mode is on in both packages — run `tsc --noEmit` to verify before calling done
 
@@ -22,10 +22,11 @@ and `frontend/` (React + Vite + Zustand). pnpm workspaces.
 Every code change — no matter how small — must follow these steps in order:
 
 1. **Branch** — `git checkout -b <type>/<short-description>` from `main`
-2. **Change** — make the edit; run `pnpm db:migrate` from `backend/` if schema changed
-3. **Verify** — run `tsc --noEmit` in the affected package(s); confirm ports 3001 / 5173 are up
-4. **PR** — push the branch and open a pull request describing what to test
-5. **User merges** — never merge or push to `main` yourself; merging the PR triggers production deploy
+2. **Change** — make the edit; run `pnpm db:push` from `backend/` if schema changed; run `tsc --noEmit` in affected package(s)
+3. **Unit test** — write and run unit tests; report results to user
+4. **Pause** — tell the user the change is ready; wait for them to verify on their local dev env (ports 3001 / 5173)
+5. **Confirm push** — after user approves, explicitly ask: "Push to GitHub / production?"
+6. **Push** — only after explicit user confirmation: push the branch and open a pull request
 
 ---
 
@@ -50,7 +51,7 @@ cd frontend && npx tsc --noEmit
 ### Database (from `backend/`)
 
 ```bash
-pnpm db:migrate   # push schema changes
+pnpm db:push      # sync schema to local SQLite (dev only — do NOT use migrate)
 pnpm db:seed      # load demo data
 pnpm db:studio    # Prisma GUI
 ```
@@ -79,14 +80,14 @@ they test: `claims.test.ts` next to `claims.ts`.
 
 1. **Diagnose** — read the relevant files, trace the full data flow end-to-end, identify root
    cause before touching code
-2. **Fix** — edit minimum code; if schema changed, run `pnpm db:migrate` from `backend/`
+2. **Fix** — edit minimum code; if schema changed, run `pnpm db:push` from `backend/`
 3. **Test** — add a unit test that would have caught this bug (install Vitest first if missing)
 4. **Verify live** — confirm ports 3001 and 5173 are running; start `pnpm dev` from root if not
 
 ### New Feature
 
 1. **Map impact** — identify which route, service, and frontend page are involved
-2. **Backend first** — add/modify route → service → Prisma schema (migrate if needed)
+2. **Backend first** — add/modify route → service → Prisma schema (run `pnpm db:push` if schema changed)
 3. **Frontend second** — update the API module in `frontend/src/api/`, then the page/component
 4. **Role-check** — verify the feature respects RBAC: does the route use `roles.ts` middleware?
 5. **Test** — add a unit test covering the new logic
@@ -129,7 +130,13 @@ API docs: `http://localhost:3001/api/docs`
   `FileUpload`
 - `types/index.ts` — all shared TypeScript interfaces
 
-### Database (Prisma / SQLite)
+### Database (Prisma)
+
+**Dev:** SQLite (`file:./dev.db`) — schema synced via `prisma db push`, no migration files used locally.
+**Production:** PostgreSQL (Neon) — Render build command swaps provider to `postgresql` before `prisma generate`; `prisma migrate deploy` runs the `backend/prisma/migrations/` files against Neon.
+Do not run `prisma migrate dev` locally — it will fail intentionally (migration_lock.toml is locked to `postgresql`).
+
+### Claim Lifecycle (Prisma)
 
 Claim lifecycle: `DRAFT → SUBMITTED → UNDER_REVIEW → APPROVED / INFO_REQUESTED / REJECTED → PAID`
 
@@ -158,13 +165,10 @@ reimbursable = (claimAmount - deductible) * (1 - copayPercent)
 
 Copy `.env.example` → `.env` in root.
 
-- `DATABASE_URL` — SQLite: `file:./dev.db` | PostgreSQL for Docker
+- `DATABASE_URL` — local: `file:./dev.db` (SQLite) | Render sets this to the Neon PostgreSQL URL
 - `JWT_SECRET` — required
 - `PORT` — default 3001
 - `SMTP_*` — optional; falls back to console
-
-**Local:** SQLite. **Docker:** PostgreSQL (`docker-compose up --build`).
-Switching between them requires changing `prisma/schema.prisma` provider AND migrating.
 
 ---
 
@@ -181,9 +185,8 @@ Switching between them requires changing `prisma/schema.prisma` provider AND mig
 
 ## Known Gotchas
 
-- `pnpm db:migrate` must be run from `backend/`, not root — it will fail silently otherwise
+- Use `pnpm db:push` (not `pnpm db:migrate`) from `backend/` for local schema changes — migrate is locked to postgresql and will error locally
 - Vitest is not installed; do not write tests and assume they run
 - `tsx watch` auto-restarts on code changes but NOT on `.env` changes — restart manually
-- Changing the Prisma provider (SQLite ↔ PostgreSQL) without migrating data will corrupt the DB
 - `authStore` persists to localStorage — stale tokens after logout can cause 401 loops in dev;
   clear localStorage if auth behaves unexpectedly
