@@ -85,14 +85,17 @@ const Topbar: React.FC<TopbarProps> = ({ title }) => {
                     <User className="h-4 w-4" />
                     My Profile
                   </Link>
-                  <Link
-                    to="/profile"
-                    onClick={() => setDropdownOpen(false)}
-                    className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                  >
-                    <Settings className="h-4 w-4" />
-                    Settings
-                  </Link>
+                  {user?.role === 'ADMIN' && (
+                    <Link
+                      to="/admin/settings"
+                      onClick={() => setDropdownOpen(false)}
+                      className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                      data-testid="settings-link"
+                    >
+                      <Settings className="h-4 w-4" />
+                      Settings
+                    </Link>
+                  )}
                 </div>
                 <div className="border-t border-gray-100 py-1">
                   <button
