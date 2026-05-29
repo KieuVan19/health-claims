@@ -1,10 +1,9 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Heart, Eye, EyeOff, LogIn } from 'lucide-react'
-import toast from 'react-hot-toast'
 import { login } from '../../api/auth'
 import { useAuthStore } from '../../store/authStore'
 import { useNotificationStore } from '../../store/notificationStore'
@@ -22,6 +21,7 @@ const Login: React.FC = () => {
   const { startPolling } = useNotificationStore()
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [loginError, setLoginError] = useState<string | null>(null)
 
   const [selectedDemo, setSelectedDemo] = useState<string | null>(null)
 
@@ -29,10 +29,18 @@ const Login: React.FC = () => {
     register,
     handleSubmit,
     setValue,
+    watch,
     formState: { errors },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
   })
+
+  const email = watch('email')
+  const password = watch('password')
+
+  useEffect(() => {
+    setLoginError(null)
+  }, [email, password])
 
   const demoAccounts = [
     { role: 'Admin', email: 'admin@healthclaims.com', password: 'Admin123!' },
@@ -57,14 +65,16 @@ const Login: React.FC = () => {
 
   const onSubmit = async (data: FormData) => {
     setIsLoading(true)
+    setLoginError(null)
     try {
       const result = await login(data.email, data.password)
       setAuth(result.user, result.token)
       if (result.user.role !== 'ADMIN') startPolling()
       navigate('/dashboard')
     } catch (error: unknown) {
-      const err = error as { response?: { data?: { message?: string } } }
-      toast.error(err.response?.data?.message || 'Invalid email or password')
+      const err = error as { response?: { data?: { error?: string; message?: string } } }
+      const errorMessage = err.response?.data?.error || err.response?.data?.message || 'username or password is incorrect'
+      setLoginError(errorMessage)
     } finally {
       setIsLoading(false)
     }
@@ -134,6 +144,8 @@ const Login: React.FC = () => {
               </div>
               {errors.password && <p className="form-error">{errors.password.message}</p>}
             </div>
+
+            {loginError && !errors.email && !errors.password && <p className="font-bold text-red-600 text-sm mb-2">{loginError}</p>}
 
             <button
               type="submit"

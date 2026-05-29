@@ -128,13 +128,13 @@ router.post(
 
       const user = await prisma.user.findUnique({ where: { email } });
       if (!user || !user.isActive) {
-        res.status(401).json({ error: 'Invalid email or password' });
+        res.status(401).json({ error: 'username or password is incorrect' });
         return;
       }
 
       const passwordValid = await bcrypt.compare(password, user.password);
       if (!passwordValid) {
-        res.status(401).json({ error: 'Invalid email or password' });
+        res.status(401).json({ error: 'username or password is incorrect' });
         return;
       }
 
