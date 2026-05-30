@@ -272,6 +272,10 @@ export interface CoverageSummary {
   remainingCoverage: number
   deductiblePaid: number
   oopPaid: number
+  inNetworkDeductiblePaid: number
+  inNetworkOopPaid: number
+  outOfNetworkDeductiblePaid: number
+  outOfNetworkOopPaid: number
   isExpired: boolean
   expiresInDays: number
 }

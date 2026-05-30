@@ -4,7 +4,7 @@ import prisma from '../lib/prisma';
 
 const router = Router();
 
-const FEATURE_KEYS = ['diagnosisCodesEnabled', 'cptCodesEnabled'] as const;
+const FEATURE_KEYS = ['diagnosisCodesEnabled', 'cptCodesEnabled', 'outOfNetworkEnabled'] as const;
 
 router.get(
   '/',
@@ -18,6 +18,7 @@ router.get(
       const defaults: Record<(typeof FEATURE_KEYS)[number], boolean> = {
         diagnosisCodesEnabled: false,
         cptCodesEnabled: false,
+        outOfNetworkEnabled: false,
       };
 
       const result = { ...defaults };

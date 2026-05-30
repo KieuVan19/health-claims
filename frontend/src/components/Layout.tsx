@@ -16,6 +16,7 @@ const pageTitles: Record<string, string> = {
   '/admin/users': 'User Management',
   '/admin/policies': 'Policy Management',
   '/admin/user-policies': 'User Policies',
+  '/admin/providers': 'Provider Management',
   '/admin/audit-logs': 'Audit Logs',
   '/admin/adjuster-workload': 'Adjuster Workload',
   '/admin/reports/tat': 'TAT Compliance Report',

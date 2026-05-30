@@ -152,6 +152,7 @@ export interface SystemSettings {
   autoAssignEnabled: string
   diagnosisCodesEnabled: string
   cptCodesEnabled: string
+  outOfNetworkEnabled: string
 }
 
 export const getSystemSettings = async (): Promise<SystemSettings> => {
