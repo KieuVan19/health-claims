@@ -4,18 +4,11 @@ import { format } from 'date-fns'
 import { Claim } from '../types'
 import StatusBadge from './StatusBadge'
 import { FileText, ChevronRight } from 'lucide-react'
+import { CLAIM_TYPE_LABELS } from '../constants/claimTypes'
 
 interface ClaimCardProps {
   claim: Claim
   linkPrefix?: string
-}
-
-const claimTypeLabels: Record<string, string> = {
-  HOSPITALIZATION: 'Hospitalization',
-  OUTPATIENT: 'Outpatient',
-  DENTAL: 'Dental',
-  VISION: 'Vision',
-  PHARMACY: 'Pharmacy',
 }
 
 const ClaimCard: React.FC<ClaimCardProps> = ({ claim, linkPrefix = '/patient/claims' }) => {
@@ -36,7 +29,7 @@ const ClaimCard: React.FC<ClaimCardProps> = ({ claim, linkPrefix = '/patient/cla
               <StatusBadge status={claim.status} />
             </div>
             <p className="text-xs text-gray-500 mt-0.5">
-              {claimTypeLabels[claim.type]} &middot; {format(new Date(claim.incidentDate), 'MMM d, yyyy')}
+              {CLAIM_TYPE_LABELS[claim.type]} &middot; {format(new Date(claim.incidentDate), 'MMM d, yyyy')}
             </p>
           </div>
         </div>

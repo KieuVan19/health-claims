@@ -36,17 +36,8 @@ import ClaimTimeline from '../../components/ClaimTimeline'
 import InfoRequestCard from '../../components/InfoRequestCard'
 import ConfirmModal from '../../components/ConfirmModal'
 import LoadingSpinner from '../../components/LoadingSpinner'
-
-const formatCurrency = (amount: number) =>
-  new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount)
-
-const claimTypeLabels: Record<string, string> = {
-  HOSPITALIZATION: 'Hospitalization',
-  OUTPATIENT: 'Outpatient',
-  DENTAL: 'Dental',
-  VISION: 'Vision',
-  PHARMACY: 'Pharmacy',
-}
+import { formatCurrency } from '../../utils/formatting'
+import { CLAIM_TYPE_LABELS } from '../../constants/claimTypes'
 
 const ClaimDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>()
@@ -245,7 +236,7 @@ const ClaimDetail: React.FC = () => {
               )}
             </div>
             <p className="text-sm text-gray-500 mt-1">
-              {claimTypeLabels[claim.type]} &bull; Submitted {format(new Date(claim.createdAt), 'MMM d, yyyy')}
+              {CLAIM_TYPE_LABELS[claim.type]} &bull; Submitted {format(new Date(claim.createdAt), 'MMM d, yyyy')}
             </p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
@@ -341,7 +332,7 @@ const ClaimDetail: React.FC = () => {
               </div>
               <div>
                 <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Type</label>
-                <p className="mt-1 text-sm text-gray-900">{claimTypeLabels[claim.type]}</p>
+                <p className="mt-1 text-sm text-gray-900">{CLAIM_TYPE_LABELS[claim.type]}</p>
               </div>
               <div>
                 <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Total Amount</label>

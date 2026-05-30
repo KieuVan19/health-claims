@@ -18,9 +18,7 @@ import LoadingSpinner from '../../components/LoadingSpinner'
 import EmptyState from '../../components/EmptyState'
 import ConfirmModal from '../../components/ConfirmModal'
 import apiClient from '../../api/client'
-
-const formatCurrency = (amount: number) =>
-  new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount)
+import { formatCurrency } from '../../utils/formatting'
 
 function computePlanYearStart(up: UserPolicy): Date {
   const now = new Date()

@@ -28,17 +28,8 @@ import { Claim, ClaimLine, ClaimTypeSummary, LineAdjudicationStatus, User } from
 import StatusBadge from '../../components/StatusBadge'
 import ClaimTimeline from '../../components/ClaimTimeline'
 import LoadingSpinner from '../../components/LoadingSpinner'
-
-const formatCurrency = (amount: number) =>
-  new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount)
-
-const claimTypeLabels: Record<string, string> = {
-  HOSPITALIZATION: 'Hospitalization',
-  OUTPATIENT: 'Outpatient',
-  DENTAL: 'Dental',
-  VISION: 'Vision',
-  PHARMACY: 'Pharmacy',
-}
+import { formatCurrency } from '../../utils/formatting'
+import { CLAIM_TYPE_LABELS } from '../../constants/claimTypes'
 
 type ModalType = 'approve' | 'reject' | 'requestInfo' | 'resolveAppeal' | null
 
@@ -323,7 +314,7 @@ const ClaimReview: React.FC = () => {
               <StatusBadge status={claim.status} />
             </div>
             <p className="text-sm text-gray-500 mt-1">
-              {claimTypeLabels[claim.type]} &bull; Patient: {claim.patient
+              {CLAIM_TYPE_LABELS[claim.type]} &bull; Patient: {claim.patient
                 ? `${claim.patient.firstName} ${claim.patient.lastName}`
                 : 'Unknown'}
             </p>
@@ -455,7 +446,7 @@ const ClaimReview: React.FC = () => {
               </div>
               <div>
                 <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Type</label>
-                <p className="mt-1 text-sm text-gray-900">{claimTypeLabels[claim.type]}</p>
+                <p className="mt-1 text-sm text-gray-900">{CLAIM_TYPE_LABELS[claim.type]}</p>
               </div>
               <div>
                 <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Total Amount</label>
@@ -847,7 +838,7 @@ const ClaimReview: React.FC = () => {
                     <div key={t.type}>
                       <div className="flex justify-between items-center mb-1">
                         <span className={`text-xs font-medium ${t.isCurrentType ? 'text-blue-600' : 'text-gray-600'}`}>
-                          {claimTypeLabels[t.type]}{t.isCurrentType ? ' ←' : ''}
+                          {CLAIM_TYPE_LABELS[t.type]}{t.isCurrentType ? ' ←' : ''}
                         </span>
                         <span className="text-xs text-gray-500">
                           ${t.usedAmount.toFixed(1)}{t.limit !== null ? `/${Math.round(t.limit)}` : ''}

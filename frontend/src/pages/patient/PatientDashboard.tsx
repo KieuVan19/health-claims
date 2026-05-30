@@ -19,17 +19,8 @@ import StatCard from '../../components/StatCard'
 import StatusBadge from '../../components/StatusBadge'
 import LoadingSpinner from '../../components/LoadingSpinner'
 import EmptyState from '../../components/EmptyState'
-
-const formatCurrency = (amount: number) =>
-  new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount)
-
-const claimTypeLabels: Record<string, string> = {
-  HOSPITALIZATION: 'Hospitalization',
-  OUTPATIENT: 'Outpatient',
-  DENTAL: 'Dental',
-  VISION: 'Vision',
-  PHARMACY: 'Pharmacy',
-}
+import { formatCurrency } from '../../utils/formatting'
+import { CLAIM_TYPE_LABELS } from '../../constants/claimTypes'
 
 const PatientDashboard: React.FC = () => {
   const { user } = useAuthStore()
@@ -177,7 +168,7 @@ const PatientDashboard: React.FC = () => {
                         <StatusBadge status={claim.status} patientView />
                       </div>
                       <p className="text-xs text-gray-500 mt-0.5">
-                        {claimTypeLabels[claim.type]} &bull; {format(new Date(claim.incidentDate), 'MMM d, yyyy')}
+                        {CLAIM_TYPE_LABELS[claim.type]} &bull; {format(new Date(claim.incidentDate), 'MMM d, yyyy')}
                       </p>
                     </div>
                   </div>

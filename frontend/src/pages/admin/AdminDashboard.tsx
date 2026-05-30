@@ -27,9 +27,7 @@ import {
 import { getAnalytics, getDashboardStats, DashboardStats, DateRangeParams } from '../../api/admin'
 import { Analytics } from '../../types'
 import LoadingSpinner from '../../components/LoadingSpinner'
-
-const formatCurrency = (amount: number) =>
-  new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(amount)
+import { formatCurrency } from '../../utils/formatting'
 
 const STATUS_COLORS: Record<string, string> = {
   DRAFT: '#bfdbfe',

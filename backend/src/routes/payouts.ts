@@ -9,6 +9,7 @@ import { createAuditLog } from '../utils/audit';
 import { createNotification } from '../utils/notification';
 import { sendClaimPaid } from '../services/email';
 import { applyRecoupment, markOffsets } from '../services/overpayments';
+import { getPaginationParams } from '../utils/pagination';
 
 const router = Router();
 
@@ -69,9 +70,7 @@ router.get(
         search,
       } = req.query as Record<string, string>;
 
-      const pageNum = Math.max(1, parseInt(page, 10));
-      const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10)));
-      const skip = (pageNum - 1) * limitNum;
+      const { pageNum, limitNum, skip } = getPaginationParams(page, limit);
 
       const allowedStatuses = ['APPROVED', 'PARTIALLY_APPROVED', 'PAID'];
       const queryStatus = allowedStatuses.includes(status) ? status : 'APPROVED';

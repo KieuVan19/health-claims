@@ -18,9 +18,7 @@ import StatusBadge from '../../components/StatusBadge'
 import LoadingSpinner from '../../components/LoadingSpinner'
 import EmptyState from '../../components/EmptyState'
 import toast from 'react-hot-toast'
-
-const formatCurrency = (amount: number) =>
-  new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount)
+import { formatCurrency } from '../../utils/formatting'
 
 const AdjusterDashboard: React.FC = () => {
   const { user } = useAuthStore()

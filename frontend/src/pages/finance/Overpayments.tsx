@@ -8,9 +8,7 @@ import { Overpayment, OverpaymentStatus, OverpaymentReason } from '../../types'
 import LoadingSpinner from '../../components/LoadingSpinner'
 import EmptyState from '../../components/EmptyState'
 import Pagination from '../../components/Pagination'
-
-const formatCurrency = (amount: number) =>
-  new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount)
+import { formatCurrency } from '../../utils/formatting'
 
 const STATUS_LABELS: Record<OverpaymentStatus, string> = {
   IDENTIFIED: 'Identified',

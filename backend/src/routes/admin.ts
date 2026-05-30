@@ -6,6 +6,8 @@ import { authenticate } from '../middleware/auth';
 import { requireRole } from '../middleware/roles';
 import { validate } from '../middleware/validate';
 import { createAuditLog, logRead } from '../utils/audit';
+import { getPaginationParams } from '../utils/pagination';
+import { passwordSchema, firstNameSchema, lastNameSchema } from '../schemas/common';
 
 const router = Router();
 
@@ -16,13 +18,9 @@ router.use(authenticate, requireRole('ADMIN'));
 
 const createUserSchema = z.object({
   email: z.string().email(),
-  password: z
-    .string()
-    .min(8)
-    .regex(/[A-Z]/)
-    .regex(/[0-9]/),
-  firstName: z.string().min(1).max(100),
-  lastName: z.string().min(1).max(100),
+  password: passwordSchema,
+  firstName: firstNameSchema,
+  lastName: lastNameSchema,
   role: z.enum(['PATIENT', 'ADJUSTER', 'FINANCE_OFFICER', 'ADMIN']),
 });
 
@@ -76,9 +74,7 @@ router.get(
         role,
       } = req.query as Record<string, string>;
 
-      const pageNum = Math.max(1, parseInt(page, 10));
-      const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10)));
-      const skip = (pageNum - 1) * limitNum;
+      const { pageNum, limitNum, skip } = getPaginationParams(page, limit);
 
       const where: Record<string, unknown> = {};
       if (role) where['role'] = role;
@@ -339,9 +335,7 @@ router.get(
         resource,
       } = req.query as Record<string, string>;
 
-      const pageNum = Math.max(1, parseInt(page, 10));
-      const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10)));
-      const skip = (pageNum - 1) * limitNum;
+      const { pageNum, limitNum, skip } = getPaginationParams(page, limit);
 
       const where: Record<string, unknown> = {};
       if (userId) where['userId'] = userId;

@@ -8,6 +8,7 @@ import { validate } from '../middleware/validate';
 import { authenticate } from '../middleware/auth';
 import { createAuditLog } from '../utils/audit';
 import { sendPasswordReset } from '../services/email';
+import { passwordSchema, firstNameSchema, lastNameSchema } from '../schemas/common';
 
 const router = Router();
 
@@ -15,13 +16,9 @@ const router = Router();
 
 const registerSchema = z.object({
   email: z.string().email('Invalid email address'),
-  password: z
-    .string()
-    .min(8, 'Password must be at least 8 characters')
-    .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
-    .regex(/[0-9]/, 'Password must contain at least one number'),
-  firstName: z.string().min(1, 'First name is required').max(100),
-  lastName: z.string().min(1, 'Last name is required').max(100),
+  password: passwordSchema,
+  firstName: firstNameSchema,
+  lastName: lastNameSchema,
 });
 
 const loginSchema = z.object({
@@ -34,11 +31,7 @@ const forgotPasswordSchema = z.object({
 });
 
 const resetPasswordSchema = z.object({
-  password: z
-    .string()
-    .min(8, 'Password must be at least 8 characters')
-    .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
-    .regex(/[0-9]/, 'Password must contain at least one number'),
+  password: passwordSchema,
 });
 
 // ─── Routes ──────────────────────────────────────────────────────────────────
