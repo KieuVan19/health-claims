@@ -57,6 +57,7 @@ const claimTypes: { type: ClaimType; label: string; icon: React.ElementType; des
 
 const detailsSchema = z.object({
   policyId: z.string().min(1, 'Please select a policy'),
+  providerName: z.string().min(1, 'Treating Provider is required'),
   incidentDate: z.string()
     .min(1, 'Incident date is required')
     .refine((v) => {
@@ -91,7 +92,6 @@ const NewClaim: React.FC = () => {
   const [createdClaimId, setCreatedClaimId] = useState<string | null>(null)
   const [filingDeadlineWarning, setFilingDeadlineWarning] = useState<string | null>(null)
   const [providers, setProviders] = useState<Provider[]>([])
-  const [providerSearch, setProviderSearch] = useState('')
   const [selectedProvider, setSelectedProvider] = useState<Provider | null>(null)
   const [providerLoading, setProviderLoading] = useState(false)
   const [diagnosisCodes, setDiagnosisCodes] = useState<string[]>([''])
@@ -99,11 +99,13 @@ const NewClaim: React.FC = () => {
   const [lineItems, setLineItems] = useState<(ClaimLineInput & { _cptError?: string; _modifierError?: string })[]>([emptyLine()])
   const [diagnosisCodesEnabled, setDiagnosisCodesEnabled] = useState(true)
   const [cptCodesEnabled, setCptCodesEnabled] = useState(true)
+  const [outOfNetworkEnabled, setOutOfNetworkEnabled] = useState(false)
 
   const {
     register,
     handleSubmit,
     watch,
+    setValue,
     formState: { errors },
     getValues,
   } = useForm<DetailsFormData>({
@@ -113,6 +115,7 @@ const NewClaim: React.FC = () => {
   const watchPolicyId = watch('policyId')
   const watchAmount = watch('totalAmount')
   const watchIncidentDate = watch('incidentDate')
+  const watchProviderName = watch('providerName')
 
   useEffect(() => {
     if (!watchIncidentDate || !selectedPolicy) {
@@ -147,22 +150,23 @@ const NewClaim: React.FC = () => {
         setCoverageSummaries(summaries)
         setDiagnosisCodesEnabled(flags.diagnosisCodesEnabled)
         setCptCodesEnabled(flags.cptCodesEnabled)
+        setOutOfNetworkEnabled(flags.outOfNetworkEnabled)
       })
       .catch(() => {})
       .finally(() => setLoadingPolicies(false))
   }, [])
 
   useEffect(() => {
-    if (providerSearch.length < 2) {
+    if (!watchProviderName || watchProviderName.length < 2) {
       setProviders([])
       return
     }
     setProviderLoading(true)
-    getProviders({ search: providerSearch, limit: 10 })
+    getProviders({ search: watchProviderName, limit: 10 })
       .then((res) => setProviders(res.providers))
       .catch(() => setProviders([]))
       .finally(() => setProviderLoading(false))
-  }, [providerSearch])
+  }, [watchProviderName])
 
   useEffect(() => {
     if (watchPolicyId) {
@@ -241,20 +245,23 @@ const NewClaim: React.FC = () => {
     const amount = Number(watchAmount)
     if (isNaN(amount) || amount <= 0) return null
 
+    const isOutOfNetwork = outOfNetworkEnabled && selectedProvider && !selectedProvider.inNetwork
     const deductible = selectedPolicy.deductible ?? 0
-    const copay = selectedPolicy.copayPercentage ?? 0
+    const copay = isOutOfNetwork
+      ? selectedPolicy.oonCopayPercent ?? selectedPolicy.copayPercentage ?? 0
+      : selectedPolicy.copayPercentage ?? 0
     const coverage = selectedPolicy.coverageAmount ?? selectedPolicy.coverageLimit ?? 0
     const oopMax = selectedPolicy.oopMax ?? Infinity
 
     const summary = coverageSummaries.find((s) => s.policy.id === selectedPolicy.id)
-    const deductiblePaid = summary?.deductiblePaid ?? 0
-    const oopPaid = summary?.oopPaid ?? 0
+    const deductiblePaid = summary?.inNetworkDeductiblePaid ?? 0
+    const oopPaid = summary?.inNetworkOopPaid ?? 0
 
     const eligibleAmount = Math.min(amount, coverage)
     const remainingOop = Math.max(0, oopMax - oopPaid)
 
     if (remainingOop === 0) {
-      return { deductible: 0, eligible: eligibleAmount, reimbursable: eligibleAmount, copay: 0 }
+      return { deductible: 0, eligible: eligibleAmount, reimbursable: eligibleAmount, copay: 0, isOutOfNetwork }
     }
 
     const remainingDeductible = Math.max(0, deductible - deductiblePaid)
@@ -271,7 +278,7 @@ const NewClaim: React.FC = () => {
     }
 
     const reimbursable = eligibleAmount - actualDeductible - actualCopay
-    return { deductible: actualDeductible, eligible: afterDeductible, reimbursable, copay }
+    return { deductible: actualDeductible, eligible: afterDeductible, reimbursable, copay, isOutOfNetwork }
   }
 
   const eligibility = calculateEligibility()
@@ -310,13 +317,15 @@ const NewClaim: React.FC = () => {
     setSaving(true)
     const validLines = cptCodesEnabled ? getValidLineItems() : []
     try {
+      // Find provider ID from the entered name
+      const matchedProvider = providers.find(p => p.name.toLowerCase() === data.providerName.toLowerCase()) || selectedProvider
       const claim = await createClaim({
         type: selectedType,
         policyId: data.policyId,
         incidentDate: data.incidentDate,
         description: data.description,
         totalAmount: Number(data.totalAmount),
-        ...(selectedProvider ? { providerId: selectedProvider.id } : {}),
+        ...(matchedProvider ? { providerId: matchedProvider.id } : {}),
         ...(diagnosisCodesEnabled ? { diagnosisCodes: getValidDiagnosisCodes() } : {}),
         ...(validLines.length > 0 ? { lines: validLines } : {}),
       } as Parameters<typeof createClaim>[0])
@@ -360,13 +369,15 @@ const NewClaim: React.FC = () => {
     try {
       let claimId = createdClaimId
       if (!claimId) {
+        // Find provider ID from the entered name
+        const matchedProvider = providers.find(p => p.name.toLowerCase() === data.providerName.toLowerCase()) || selectedProvider
         const claim = await createClaim({
           type: selectedType,
           policyId: data.policyId,
           incidentDate: data.incidentDate,
           description: data.description,
           totalAmount: Number(data.totalAmount),
-          ...(selectedProvider ? { providerId: selectedProvider.id } : {}),
+          ...(matchedProvider ? { providerId: matchedProvider.id } : {}),
           ...(diagnosisCodesEnabled ? { diagnosisCodes: getValidDiagnosisCodes() } : {}),
           ...(validLines.length > 0 ? { lines: validLines } : {}),
         } as Parameters<typeof createClaim>[0])
@@ -510,59 +521,51 @@ const NewClaim: React.FC = () => {
               {errors.policyId && <p className="form-error">{errors.policyId.message}</p>}
             </div>
 
-            {/* Provider search/select — optional */}
+            {/* Treating Provider — always visible and required */}
             <div>
-              <label className="form-label" htmlFor="providerSearch">Treating Provider (optional)</label>
-              {selectedProvider ? (
-                <div className="flex items-center justify-between rounded-lg border border-blue-300 bg-blue-50 px-3 py-2">
-                  <div>
-                    <p className="text-sm font-medium text-blue-900">{selectedProvider.name}</p>
-                    <p className="text-xs text-blue-600">NPI: {selectedProvider.npi} &middot; {selectedProvider.specialty ?? selectedProvider.providerType} &middot; {selectedProvider.inNetwork ? 'In-Network' : 'Out-of-Network'}</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => { setSelectedProvider(null); setProviderSearch('') }}
-                    className="text-xs text-blue-600 hover:text-blue-800 underline ml-2"
-                  >
-                    Change
-                  </button>
-                </div>
-              ) : (
-                <div className="relative">
-                  <input
-                    id="providerSearch"
-                    type="text"
-                    className="form-input"
-                    placeholder="Search by provider name or NPI..."
-                    value={providerSearch}
-                    onChange={(e) => setProviderSearch(e.target.value)}
-                    data-testid="provider-search-input"
-                    autoComplete="off"
-                  />
-                  {providerLoading && (
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">Searching…</span>
-                  )}
-                  {providers.length > 0 && (
-                    <ul className="absolute z-10 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg max-h-48 overflow-y-auto">
-                      {providers.map((p) => (
-                        <li key={p.id}>
-                          <button
-                            type="button"
-                            className="w-full text-left px-3 py-2 hover:bg-blue-50 transition-colors"
-                            onClick={() => { setSelectedProvider(p); setProviderSearch(''); setProviders([]) }}
-                          >
-                            <p className="text-sm font-medium text-gray-900">{p.name}</p>
-                            <p className="text-xs text-gray-500">NPI: {p.npi} &middot; {p.specialty ?? p.providerType} &middot; {p.inNetwork ? <span className="text-green-600">In-Network</span> : <span className="text-amber-600">Out-of-Network</span>}</p>
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                  {providerSearch.length >= 2 && !providerLoading && providers.length === 0 && (
-                    <p className="mt-1 text-xs text-gray-500">No providers found. You may leave this blank.</p>
-                  )}
-                </div>
-              )}
+              <label className="form-label" htmlFor="providerName">Treating Provider</label>
+              <div className="relative">
+                <input
+                  id="providerName"
+                  type="text"
+                  className={`form-input ${errors.providerName ? 'border-red-500' : ''}`}
+                  placeholder="Enter provider name or search..."
+                  data-testid="provider-name-input"
+                  autoComplete="off"
+                  {...register('providerName')}
+                />
+                {providerLoading && (
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">Searching…</span>
+                )}
+                {providers.length > 0 && watchProviderName && watchProviderName.length > 0 && (
+                  <ul className="absolute z-10 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg max-h-48 overflow-y-auto">
+                    {providers.map((p) => (
+                      <li key={p.id}>
+                        <button
+                          type="button"
+                          className="w-full text-left px-3 py-2 hover:bg-blue-50 transition-colors"
+                          onClick={() => {
+                            setValue('providerName', p.name)
+                            setSelectedProvider(p)
+                            setProviders([])
+                          }}
+                        >
+                          <p className="text-sm font-medium text-gray-900">{p.name}</p>
+                          <p className="text-xs text-gray-500">
+                            NPI: {p.npi} &middot; {p.specialty ?? p.providerType}
+                            {outOfNetworkEnabled && (
+                              <>
+                                {' '}&middot; {p.inNetwork ? <span className="text-green-600">In-Network</span> : <span className="text-amber-600">Out-of-Network</span>}
+                              </>
+                            )}
+                          </p>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+              {errors.providerName && <p className="form-error">{errors.providerName.message}</p>}
             </div>
 
             <div>
@@ -773,7 +776,7 @@ const NewClaim: React.FC = () => {
                     <span className="font-medium text-green-900">{formatCurrency(eligibility.eligible)}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-green-700">Copay ({eligibility.copay}%)</span>
+                    <span className="text-green-700">{outOfNetworkEnabled ? (eligibility.isOutOfNetwork ? 'Out-of-Network' : 'In-Network') : ''} Co-pay ({eligibility.copay}%)</span>
                     <span className="font-medium text-green-900">- {formatCurrency(eligibility.eligible * eligibility.copay / 100)}</span>
                   </div>
                   <div className="flex justify-between pt-1 border-t border-green-200">

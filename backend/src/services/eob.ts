@@ -80,7 +80,7 @@ function buildEobPdf(claim: EobClaimData): Promise<Buffer> {
     );
     doc.text(`Provider: ${claim.description}`);
     const networkLabel = claim.networkStatus === 'OUT' ? 'Out-of-Network' : 'In-Network';
-    const appliedCopay = claim.networkStatus === 'OUT' ? claim.policy.oonCopayPercent : claim.policy.copayPercentage;
+    const appliedCopay = claim.networkStatus === 'OUT' ? claim.policy.oonCopayPercent ?? claim.policy.copayPercentage : claim.policy.copayPercentage;
     doc.text(`Network Tier: ${networkLabel}`);
     doc.text(`Applied Copay Rate: ${appliedCopay}%`);
     if (claim.adjuster) {
@@ -116,7 +116,7 @@ function buildEobPdf(claim: EobClaimData): Promise<Buffer> {
     const copay = Math.max(0, eligible - ded - reimb);
     const insurancePaid = claim.adjustedAmount ?? reimb;
     const patientResponsibility = claim.totalAmount - insurancePaid;
-    const copayRate = claim.networkStatus === 'OUT' ? claim.policy.oonCopayPercent : claim.policy.copayPercentage;
+    const copayRate = claim.networkStatus === 'OUT' ? claim.policy.oonCopayPercent ?? claim.policy.copayPercentage : claim.policy.copayPercentage;
     const networkTag = claim.networkStatus === 'OUT' ? ' OON' : '';
 
     drawRow('Billed Amount:', `$${claim.totalAmount.toFixed(2)}`);

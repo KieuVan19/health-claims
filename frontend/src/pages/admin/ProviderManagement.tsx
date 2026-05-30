@@ -9,9 +9,11 @@ import {
   CreateProviderData,
   UpdateProviderData,
 } from '../../api/providers'
+import { getSystemSettings } from '../../api/admin'
 import { Provider, ProviderType } from '../../types'
 import LoadingSpinner from '../../components/LoadingSpinner'
 import Pagination from '../../components/Pagination'
+import EmptyState from '../../components/EmptyState'
 
 const PROVIDER_TYPES: ProviderType[] = ['PHYSICIAN', 'HOSPITAL', 'CLINIC', 'OTHER']
 
@@ -48,11 +50,18 @@ const ProviderManagement: React.FC = () => {
   const [form, setForm] = useState<ProviderFormState>(emptyForm)
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
+  const [outOfNetworkEnabled, setOutOfNetworkEnabled] = useState(false)
 
   const fetchProviders = (p = page, q = search) => {
     setLoading(true)
-    getProviders({ search: q || undefined, page: p, limit: 20 })
-      .then(setData)
+    Promise.all([
+      getProviders({ search: q || undefined, page: p, limit: 20 }),
+      getSystemSettings(),
+    ])
+      .then(([providers, settings]) => {
+        setData(providers)
+        setOutOfNetworkEnabled(settings.outOfNetworkEnabled === 'true')
+      })
       .catch(() => toast.error('Failed to load providers'))
       .finally(() => setLoading(false))
   }
@@ -138,6 +147,16 @@ const ProviderManagement: React.FC = () => {
     } finally {
       setSaving(false)
     }
+  }
+
+  if (!outOfNetworkEnabled) {
+    return (
+      <EmptyState
+        icon={Plus}
+        title="Out-of-Network Feature Disabled"
+        description="Provider management is only available when out-of-network support is enabled. Enable it in System Settings to manage providers and network status."
+      />
+    )
   }
 
   return (

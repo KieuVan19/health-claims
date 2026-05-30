@@ -51,16 +51,24 @@ async function main() {
   console.log('Created users.');
 
   // ── Demo Providers ─────────────────────────────────────────────────────────
-  const [prov1, prov2, prov3, prov4, prov5] = await Promise.all([
+  const [prov1, prov2, prov3, prov4, prov5, prov6, prov7, prov8, prov9, prov10, prov11, prov12, prov13, prov14, prov15] = await Promise.all([
     prisma.provider.create({ data: { npi: '1003000126', name: 'City General Hospital', providerType: 'HOSPITAL', inNetwork: true, specialty: 'General Medicine' } }),
     prisma.provider.create({ data: { npi: '1679576722', name: 'Dr. Sarah Mitchell, MD', providerType: 'PHYSICIAN', inNetwork: true, specialty: 'Internal Medicine' } }),
     prisma.provider.create({ data: { npi: '1952387490', name: 'Riverside Dental Clinic', providerType: 'CLINIC', inNetwork: true, specialty: 'Dentistry' } }),
     prisma.provider.create({ data: { npi: '1234567893', name: 'Vision Care Associates', providerType: 'CLINIC', inNetwork: false, specialty: 'Ophthalmology' } }),
     prisma.provider.create({ data: { npi: '1987654328', name: 'MedPlus Pharmacy Group', providerType: 'OTHER', inNetwork: true, specialty: 'Pharmacy' } }),
+    prisma.provider.create({ data: { npi: '1111222333', name: 'St. Luke\'s Medical Center', providerType: 'HOSPITAL', inNetwork: true, specialty: 'Surgery' } }),
+    prisma.provider.create({ data: { npi: '1444555666', name: 'Dr. James Wilson, MD', providerType: 'PHYSICIAN', inNetwork: true, specialty: 'Cardiology' } }),
+    prisma.provider.create({ data: { npi: '1777888999', name: 'Premier Orthopedic Specialists', providerType: 'CLINIC', inNetwork: true, specialty: 'Orthopedics' } }),
+    prisma.provider.create({ data: { npi: '2000111222', name: 'Bright Smile Dental', providerType: 'CLINIC', inNetwork: false, specialty: 'Dentistry' } }),
+    prisma.provider.create({ data: { npi: '2333444555', name: 'Advanced Imaging Center', providerType: 'CLINIC', inNetwork: true, specialty: 'Radiology' } }),
+    prisma.provider.create({ data: { npi: '2666777888', name: 'Dr. Lisa Chen, MD', providerType: 'PHYSICIAN', inNetwork: true, specialty: 'Pediatrics' } }),
+    prisma.provider.create({ data: { npi: '2999000111', name: 'Mental Health Wellness Center', providerType: 'CLINIC', inNetwork: true, specialty: 'Psychiatry' } }),
+    prisma.provider.create({ data: { npi: '3222333444', name: 'Elite Urgent Care', providerType: 'CLINIC', inNetwork: false, specialty: 'Emergency Care' } }),
+    prisma.provider.create({ data: { npi: '3555666777', name: 'QuickCare Pharmacy', providerType: 'OTHER', inNetwork: true, specialty: 'Pharmacy' } }),
+    prisma.provider.create({ data: { npi: '3888999000', name: 'Dr. Michael Rodriguez, MD', providerType: 'PHYSICIAN', inNetwork: false, specialty: 'Neurology' } }),
   ]);
-  console.log('Created 5 demo providers.');
-
-  void [prov1, prov2, prov3, prov4, prov5];
+  console.log('Created 15 demo providers.');
 
   const basicBenefits = JSON.stringify({ hospitalization: { limit: 10000, coveragePercent: 70 }, outpatient: { limit: 10000, coveragePercent: 60 }, dental: { limit: 10000, coveragePercent: 50 }, vision: { limit: 10000, coveragePercent: 50 }, pharmacy: { limit: 10000, coveragePercent: 70 } });
   const stdBenefits = JSON.stringify({ hospitalization: { limit: 20000, coveragePercent: 80 }, outpatient: { limit: 20000, coveragePercent: 70 }, dental: { limit: 20000, coveragePercent: 60 }, vision: { limit: 20000, coveragePercent: 50 }, pharmacy: { limit: 20000, coveragePercent: 80 } });
