@@ -55,7 +55,13 @@ const Register: React.FC = () => {
       setAuth(result.user, result.token)
       startPolling()
       toast.success('Account created successfully!')
-      navigate('/dashboard')
+      const dashboardMap: Record<string, string> = {
+        PATIENT: '/patient/dashboard',
+        ADJUSTER: '/adjuster/dashboard',
+        FINANCE_OFFICER: '/finance/dashboard',
+        ADMIN: '/admin/dashboard',
+      }
+      navigate(dashboardMap[result.user.role] || '/patient/dashboard')
     } catch (error: unknown) {
       const err = error as { response?: { data?: { message?: string } } }
       toast.error(err.response?.data?.message || 'Registration failed. Please try again.')

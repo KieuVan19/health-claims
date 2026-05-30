@@ -4,15 +4,22 @@ import Sidebar from './Sidebar'
 import Topbar from './Topbar'
 
 const pageTitles: Record<string, string> = {
-  '/dashboard': 'Dashboard',
-  '/claims': 'My Claims',
-  '/claims/new': 'New Claim',
-  '/policies': 'My Policies',
-  '/profile': 'My Profile',
+  '/patient/dashboard': 'Dashboard',
+  '/patient/profile': 'My Profile',
+  '/patient/claims': 'My Claims',
+  '/patient/claims/new': 'New Claim',
+  '/patient/policies': 'My Policies',
+  '/adjuster/dashboard': 'Dashboard',
+  '/adjuster/profile': 'My Profile',
   '/adjuster/claims': 'Claims Queue',
+  '/finance/dashboard': 'Dashboard',
+  '/finance/profile': 'My Profile',
   '/finance/payouts': 'Payouts',
   '/finance/reports': 'Finance Reports',
+  '/finance/reports/tat': 'TAT Compliance Report',
+  '/finance/overpayments': 'Overpayments',
   '/admin/dashboard': 'Admin Dashboard',
+  '/admin/profile': 'My Profile',
   '/admin/users': 'User Management',
   '/admin/policies': 'Policy Management',
   '/admin/user-policies': 'User Policies',
@@ -30,9 +37,11 @@ const Layout: React.FC = () => {
     // Check exact match
     if (pageTitles[location.pathname]) return pageTitles[location.pathname]
     // Check if it's a claims detail page
-    if (location.pathname.match(/^\/claims\/[^/]+\/edit$/)) return 'Edit Claim'
-    if (location.pathname.startsWith('/claims/')) return 'Claim Details'
-    if (location.pathname.startsWith('/adjuster/claims/')) return 'Claim Review'
+    if (location.pathname.match(/^\/patient\/claims\/[^/]+\/edit$/)) return 'Edit Claim'
+    if (location.pathname.match(/^\/patient\/claims\/[^/]+$/)) return 'Claim Details'
+    if (location.pathname.match(/^\/adjuster\/claims\/[^/]+$/)) return 'Claim Review'
+    if (location.pathname.match(/^\/admin\/claims\/[^/]+$/)) return 'Claim Details'
+    if (location.pathname.match(/^\/finance\/payouts\/[^/]+$/)) return 'Payout Details'
     return ''
   }
 
