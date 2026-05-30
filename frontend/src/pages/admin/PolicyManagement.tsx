@@ -21,9 +21,7 @@ import { Policy, PolicyType } from '../../types'
 import LoadingSpinner from '../../components/LoadingSpinner'
 import EmptyState from '../../components/EmptyState'
 import ConfirmModal from '../../components/ConfirmModal'
-
-const formatCurrency = (amount: number) =>
-  new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount)
+import { formatCurrency } from '../../utils/formatting'
 
 const policyTypeColors: Record<PolicyType, string> = {
   BASIC: 'bg-gray-100 text-gray-700',

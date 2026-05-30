@@ -6,9 +6,7 @@ import { Claim } from '../../types'
 import LoadingSpinner from '../../components/LoadingSpinner'
 import StatusBadge from '../../components/StatusBadge'
 import Pagination from '../../components/Pagination'
-
-const formatCurrency = (amount: number) =>
-  new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount)
+import { formatCurrency } from '../../utils/formatting'
 
 const formatDate = (dateStr: string | undefined) => {
   if (!dateStr) return '—'

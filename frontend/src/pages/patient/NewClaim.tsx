@@ -29,9 +29,7 @@ import { Policy, ClaimType, CoverageSummary, Provider, ClaimLineInput } from '..
 import FileUpload from '../../components/FileUpload'
 import ICD10Input from '../../components/ICD10Input'
 import LoadingSpinner from '../../components/LoadingSpinner'
-
-const formatCurrency = (amount: number) =>
-  new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount)
+import { formatCurrency } from '../../utils/formatting'
 
 const ICD10_REGEX = /^[A-Z][0-9]{2}(\.[0-9A-Z]{1,4})?$/
 const CPT_REGEX = /^\d{5}$/

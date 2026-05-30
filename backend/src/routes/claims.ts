@@ -10,6 +10,8 @@ import { validate } from '../middleware/validate';
 import { createAuditLog, logRead } from '../utils/audit';
 import { createNotification } from '../utils/notification';
 import { generateClaimNumber } from '../utils/claimNumber';
+import { getPaginationParams } from '../utils/pagination';
+import { checkPatientOwnershipIfPatient, checkPatientOwnership } from '../utils/ownership';
 import { calculateEligible, getDeductiblePaid, getOopPaid, scoreFraud, checkFilingDeadline } from '../services/claims';
 import { autoAssignClaim } from '../services/assignment';
 import { config } from '../config';
@@ -247,9 +249,7 @@ router.get(
         sortOrder = 'desc',
       } = req.query as Record<string, string>;
 
-      const pageNum = Math.max(1, parseInt(page, 10));
-      const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10)));
-      const skip = (pageNum - 1) * limitNum;
+      const { pageNum, limitNum, skip } = getPaginationParams(page, limit);
 
       const where: Record<string, unknown> = {};
       if (role === 'PATIENT') where['patientId'] = userId;
@@ -660,8 +660,7 @@ router.get(
         return;
       }
 
-      if (req.user!.role === 'PATIENT' && claim.patientId !== req.user!.id) {
-        res.status(403).json({ error: 'Access denied' });
+      if (!checkPatientOwnershipIfPatient(req.user!.role, claim.patientId, req.user!.id, res)) {
         return;
       }
 
@@ -796,8 +795,7 @@ router.get(
         return;
       }
 
-      if (req.user!.role === 'PATIENT' && claim.patientId !== req.user!.id) {
-        res.status(403).json({ error: 'Access denied' });
+      if (!checkPatientOwnershipIfPatient(req.user!.role, claim.patientId, req.user!.id, res)) {
         return;
       }
 

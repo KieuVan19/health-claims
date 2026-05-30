@@ -8,17 +8,8 @@ import StatusBadge from '../../components/StatusBadge'
 import Pagination from '../../components/Pagination'
 import LoadingSpinner from '../../components/LoadingSpinner'
 import EmptyState from '../../components/EmptyState'
-
-const formatCurrency = (amount: number) =>
-  new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount)
-
-const claimTypeLabels: Record<ClaimType, string> = {
-  HOSPITALIZATION: 'Hospitalization',
-  OUTPATIENT: 'Outpatient',
-  DENTAL: 'Dental',
-  VISION: 'Vision',
-  PHARMACY: 'Pharmacy',
-}
+import { formatCurrency } from '../../utils/formatting'
+import { CLAIM_TYPE_LABELS } from '../../constants/claimTypes'
 
 const statusOptions = [
   { value: '', label: 'All Statuses' },
@@ -348,7 +339,7 @@ const ClaimQueue: React.FC = () => {
                           ? `${claim.patient.firstName} ${claim.patient.lastName}`
                           : <span className="text-gray-400">—</span>}
                       </td>
-                      <td className="table-cell">{claimTypeLabels[claim.type]}</td>
+                      <td className="table-cell">{CLAIM_TYPE_LABELS[claim.type]}</td>
                       <td className="table-cell">
                         <div className="flex items-center gap-2 flex-wrap">
                           <StatusBadge status={claim.status as ClaimStatus} />

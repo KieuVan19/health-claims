@@ -17,17 +17,8 @@ import StatusBadge from '../../components/StatusBadge'
 import Pagination from '../../components/Pagination'
 import LoadingSpinner from '../../components/LoadingSpinner'
 import EmptyState from '../../components/EmptyState'
-
-const formatCurrency = (amount: number) =>
-  new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount)
-
-const claimTypeLabels: Record<string, string> = {
-  HOSPITALIZATION: 'Hospitalization',
-  OUTPATIENT: 'Outpatient',
-  DENTAL: 'Dental',
-  VISION: 'Vision',
-  PHARMACY: 'Pharmacy',
-}
+import { formatCurrency } from '../../utils/formatting'
+import { CLAIM_TYPE_LABELS } from '../../constants/claimTypes'
 
 type Tab = 'pending' | 'paid'
 
@@ -376,7 +367,7 @@ const PayoutList: React.FC = () => {
                           ? `${claim.patient.firstName} ${claim.patient.lastName}`
                           : '—'}
                       </td>
-                      <td className="table-cell">{claimTypeLabels[claim.type] ?? claim.type}</td>
+                      <td className="table-cell">{CLAIM_TYPE_LABELS[claim.type] ?? claim.type}</td>
                       <td className="table-cell">
                         <StatusBadge status={claim.status} />
                       </td>

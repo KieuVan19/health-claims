@@ -5,9 +5,7 @@ import { getPolicies } from '../../api/policies'
 import { getCoverageSummary } from '../../api/users'
 import { CoverageSummary } from '../../types'
 import LoadingSpinner from '../../components/LoadingSpinner'
-
-const formatCurrency = (amount: number) =>
-  new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount)
+import { formatCurrency } from '../../utils/formatting'
 
 interface YearSummary {
   year: number

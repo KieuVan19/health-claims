@@ -6,6 +6,7 @@ import { requireRole } from '../middleware/roles';
 import { validate } from '../middleware/validate';
 import { createAuditLog } from '../utils/audit';
 import { createNotification } from '../utils/notification';
+import { getPaginationParams } from '../utils/pagination';
 
 const router = Router();
 
@@ -56,9 +57,7 @@ router.get(
     try {
       const { status, page = '1', limit = '20' } = req.query as Record<string, string>;
 
-      const pageNum = Math.max(1, parseInt(page, 10));
-      const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10)));
-      const skip = (pageNum - 1) * limitNum;
+      const { pageNum, limitNum, skip } = getPaginationParams(page, limit);
 
       const validStatuses = ['IDENTIFIED', 'OFFSET', 'WAIVED'];
       const where = status && validStatuses.includes(status) ? { status } : {};

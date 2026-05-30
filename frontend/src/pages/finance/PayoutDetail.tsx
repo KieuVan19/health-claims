@@ -10,9 +10,7 @@ import { getPatientUserPolicies } from '../../api/admin'
 import { Claim, Overpayment, OverpaymentReason, UserPolicy } from '../../types'
 import StatusBadge from '../../components/StatusBadge'
 import LoadingSpinner from '../../components/LoadingSpinner'
-
-const formatCurrency = (amount: number) =>
-  new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount)
+import { formatCurrency } from '../../utils/formatting'
 
 interface RowProps {
   label: string

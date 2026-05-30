@@ -6,6 +6,7 @@ import { requireRole } from '../middleware/roles';
 import { validate } from '../middleware/validate';
 import { createAuditLog } from '../utils/audit';
 import { validateNpi } from '../utils/npi';
+import { getPaginationParams } from '../utils/pagination';
 
 const router = Router();
 
@@ -70,9 +71,7 @@ router.get(
         limit = '20',
       } = req.query as Record<string, string>;
 
-      const pageNum = Math.max(1, parseInt(page, 10));
-      const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10)));
-      const skip = (pageNum - 1) * limitNum;
+      const { pageNum, limitNum, skip } = getPaginationParams(page, limit);
 
       const where: Record<string, unknown> = {};
       if (inNetwork === 'true') where['inNetwork'] = true;

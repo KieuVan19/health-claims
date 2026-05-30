@@ -6,6 +6,7 @@ import { authenticate } from '../middleware/auth';
 import { requireRole } from '../middleware/roles';
 import { uploadDocuments } from '../middleware/upload';
 import { logRead } from '../utils/audit';
+import { checkPatientOwnershipIfPatient, checkPatientOwnership } from '../utils/ownership';
 
 const router = Router();
 
@@ -61,8 +62,7 @@ router.post(
         return;
       }
 
-      if (claim.patientId !== req.user!.id) {
-        res.status(403).json({ error: 'Access denied' });
+      if (!checkPatientOwnership(claim.patientId, req.user!.id, res)) {
         return;
       }
 
@@ -126,8 +126,7 @@ router.get(
       }
 
       // Patients can only access their own claim documents
-      if (req.user!.role === 'PATIENT' && claim.patientId !== req.user!.id) {
-        res.status(403).json({ error: 'Access denied' });
+      if (!checkPatientOwnershipIfPatient(req.user!.role, claim.patientId, req.user!.id, res)) {
         return;
       }
 
@@ -180,8 +179,7 @@ router.get(
       }
 
       // Patients can only download their own documents
-      if (req.user!.role === 'PATIENT' && document.claim.patientId !== req.user!.id) {
-        res.status(403).json({ error: 'Access denied' });
+      if (!checkPatientOwnershipIfPatient(req.user!.role, document.claim.patientId, req.user!.id, res)) {
         return;
       }
 
@@ -237,8 +235,7 @@ router.delete(
         return;
       }
 
-      if (document.claim.patientId !== req.user!.id) {
-        res.status(403).json({ error: 'Access denied' });
+      if (!checkPatientOwnership(document.claim.patientId, req.user!.id, res)) {
         return;
       }
 
