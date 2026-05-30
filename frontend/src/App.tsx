@@ -45,6 +45,17 @@ import SystemSettings from './pages/admin/SystemSettings'
 
 import LoadingSpinner from './components/LoadingSpinner'
 
+const RoleBasedDashboardRedirect: React.FC = () => {
+  const { user } = useAuthStore()
+  const dashboardMap: Record<string, string> = {
+    PATIENT: '/patient/dashboard',
+    ADJUSTER: '/adjuster/dashboard',
+    FINANCE_OFFICER: '/finance/dashboard',
+    ADMIN: '/admin/dashboard',
+  }
+  return <Navigate to={dashboardMap[user?.role!] || '/patient/dashboard'} replace />
+}
+
 function App() {
   const { initialize, isLoading, isAuthenticated, user } = useAuthStore()
   const { startPolling, stopPolling } = useNotificationStore()
@@ -80,14 +91,28 @@ function App() {
       {/* Protected routes with layout */}
       <Route element={<ProtectedRoute />}>
         <Route element={<Layout />}>
-          {/* Root redirect */}
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/profile" element={<Profile />} />
+          {/* Root redirect — determine dashboard based on role */}
+          <Route path="/" element={<RoleBasedDashboardRedirect />} />
 
           {/* Patient routes */}
           <Route
-            path="/claims"
+            path="/patient/dashboard"
+            element={
+              <ProtectedRoute allowedRoles={['PATIENT']}>
+                <Dashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/patient/profile"
+            element={
+              <ProtectedRoute allowedRoles={['PATIENT']}>
+                <Profile />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/patient/claims"
             element={
               <ProtectedRoute allowedRoles={['PATIENT']}>
                 <ClaimList />
@@ -95,7 +120,7 @@ function App() {
             }
           />
           <Route
-            path="/claims/new"
+            path="/patient/claims/new"
             element={
               <ProtectedRoute allowedRoles={['PATIENT']}>
                 <NewClaim />
@@ -103,7 +128,7 @@ function App() {
             }
           />
           <Route
-            path="/claims/:id"
+            path="/patient/claims/:id"
             element={
               <ProtectedRoute allowedRoles={['PATIENT']}>
                 <ClaimDetail />
@@ -111,7 +136,7 @@ function App() {
             }
           />
           <Route
-            path="/claims/:id/edit"
+            path="/patient/claims/:id/edit"
             element={
               <ProtectedRoute allowedRoles={['PATIENT']}>
                 <EditClaim />
@@ -119,7 +144,7 @@ function App() {
             }
           />
           <Route
-            path="/policies"
+            path="/patient/policies"
             element={
               <ProtectedRoute allowedRoles={['PATIENT']}>
                 <PolicyView />
@@ -127,7 +152,7 @@ function App() {
             }
           />
           <Route
-            path="/policies/history"
+            path="/patient/policies/history"
             element={
               <ProtectedRoute allowedRoles={['PATIENT']}>
                 <PolicyHistory />
@@ -136,6 +161,22 @@ function App() {
           />
 
           {/* Adjuster routes */}
+          <Route
+            path="/adjuster/dashboard"
+            element={
+              <ProtectedRoute allowedRoles={['ADJUSTER']}>
+                <Dashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/adjuster/profile"
+            element={
+              <ProtectedRoute allowedRoles={['ADJUSTER']}>
+                <Profile />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/adjuster/claims"
             element={
@@ -153,7 +194,23 @@ function App() {
             }
           />
 
-          {/* Finance routes */}
+          {/* Finance Officer routes */}
+          <Route
+            path="/finance/dashboard"
+            element={
+              <ProtectedRoute allowedRoles={['FINANCE_OFFICER']}>
+                <Dashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/finance/profile"
+            element={
+              <ProtectedRoute allowedRoles={['FINANCE_OFFICER']}>
+                <Profile />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/finance/payouts"
             element={
@@ -186,6 +243,14 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/finance/reports/tat"
+            element={
+              <ProtectedRoute allowedRoles={['FINANCE_OFFICER']}>
+                <TatReport />
+              </ProtectedRoute>
+            }
+          />
 
           {/* Admin routes */}
           <Route
@@ -193,6 +258,14 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['ADMIN']}>
                 <AdminDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/profile"
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN']}>
+                <Profile />
               </ProtectedRoute>
             }
           />
@@ -239,7 +312,7 @@ function App() {
           <Route
             path="/admin/reports/tat"
             element={
-              <ProtectedRoute allowedRoles={['ADMIN', 'FINANCE_OFFICER']}>
+              <ProtectedRoute allowedRoles={['ADMIN']}>
                 <TatReport />
               </ProtectedRoute>
             }
