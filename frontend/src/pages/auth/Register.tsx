@@ -39,6 +39,7 @@ const Register: React.FC = () => {
     register,
     handleSubmit,
     formState: { errors },
+    setError,
   } = useForm<FormData>({
     resolver: zodResolver(schema),
   })
@@ -63,8 +64,15 @@ const Register: React.FC = () => {
       }
       navigate(dashboardMap[result.user.role] || '/patient/dashboard')
     } catch (error: unknown) {
-      const err = error as { response?: { data?: { message?: string } } }
-      toast.error(err.response?.data?.message || 'Registration failed. Please try again.')
+      const err = error as { response?: { status?: number; data?: { error?: string; message?: string } } }
+      if (err.response?.status === 409) {
+        setError('email', {
+          type: 'manual',
+          message: 'Email address is already registered',
+        })
+      } else {
+        toast.error(err.response?.data?.error || err.response?.data?.message || 'Registration failed. Please try again.')
+      }
     } finally {
       setIsLoading(false)
     }
