@@ -65,6 +65,7 @@ const SystemSettings: React.FC = () => {
   const [autoAssign, setAutoAssign] = useState(true)
   const [diagnosisCodes, setDiagnosisCodes] = useState(true)
   const [cptCodes, setCptCodes] = useState(true)
+  const [outOfNetwork, setOutOfNetwork] = useState(false)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState<string | null>(null)
   const [savedMsg, setSavedMsg] = useState<Record<string, string>>({})
@@ -75,6 +76,7 @@ const SystemSettings: React.FC = () => {
         setAutoAssign(s.autoAssignEnabled === 'true')
         setDiagnosisCodes(s.diagnosisCodesEnabled !== 'false')
         setCptCodes(s.cptCodesEnabled !== 'false')
+        setOutOfNetwork(s.outOfNetworkEnabled === 'true')
       })
       .finally(() => setLoading(false))
   }, [])
@@ -140,6 +142,20 @@ const SystemSettings: React.FC = () => {
             onChange={(v) => handleToggle('cptCodesEnabled', v, setCptCodes)}
           />
         </div>
+      </Section>
+
+      <Section
+        icon={<Settings className="h-5 w-5 text-blue-600" />}
+        title="Network Configuration"
+        savedMsg={savedMsg['outOfNetworkEnabled']}
+      >
+        <ToggleRow
+          label="Out-of-network provider support"
+          description="Enable in-network and out-of-network differentiation for providers and claims. When enabled, policies have separate deductible and copay rates for out-of-network providers. When disabled, all claims are treated as in-network."
+          checked={outOfNetwork}
+          disabled={saving === 'outOfNetworkEnabled'}
+          onChange={(v) => handleToggle('outOfNetworkEnabled', v, setOutOfNetwork)}
+        />
       </Section>
     </div>
   )

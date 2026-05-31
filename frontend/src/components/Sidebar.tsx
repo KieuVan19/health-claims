@@ -37,20 +37,20 @@ const navByRole: Record<Role, NavItem[]> = {
     { label: 'My Claims', to: '/patient/claims', icon: FileText },
     { label: 'New Claim', to: '/patient/claims/new', icon: PlusCircle },
     { label: 'My Policies', to: '/patient/policies', icon: Shield },
-    { label: 'Profile', to: '/profile', icon: User },
+    { label: 'Profile', to: '/patient/profile', icon: User },
   ],
   ADJUSTER: [
     { label: 'Dashboard', to: '/adjuster/dashboard', icon: LayoutDashboard },
     { label: 'Claims Queue', to: '/adjuster/claims', icon: ClipboardList },
-    { label: 'Profile', to: '/profile', icon: User },
+    { label: 'Profile', to: '/adjuster/profile', icon: User },
   ],
   FINANCE_OFFICER: [
     { label: 'Dashboard', to: '/finance/dashboard', icon: LayoutDashboard },
     { label: 'Payouts', to: '/finance/payouts', icon: DollarSign },
     { label: 'Overpayments', to: '/finance/overpayments', icon: AlertTriangle },
     { label: 'Finance Reports', to: '/finance/reports', icon: FileText },
-    { label: 'TAT Report', to: '/admin/reports/tat', icon: Timer },
-    { label: 'Profile', to: '/profile', icon: User },
+    { label: 'TAT Report', to: '/finance/reports/tat', icon: Timer },
+    { label: 'Profile', to: '/finance/profile', icon: User },
   ],
   ADMIN: [
     { label: 'Dashboard', to: '/admin/dashboard', icon: LayoutDashboard },
@@ -62,7 +62,7 @@ const navByRole: Record<Role, NavItem[]> = {
     { label: 'TAT Report', to: '/admin/reports/tat', icon: Timer },
     { label: 'Audit Logs', to: '/admin/audit-logs', icon: ScrollText },
     { label: 'Settings', to: '/admin/settings', icon: Settings },
-    { label: 'Profile', to: '/profile', icon: User },
+    { label: 'Profile', to: '/admin/profile', icon: User },
   ],
 }
 

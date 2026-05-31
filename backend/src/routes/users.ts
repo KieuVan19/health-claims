@@ -372,13 +372,15 @@ router.get(
             ? new Date(up.startDate)
             : yearStart;
 
-          const [usedAgg, deductiblePaid, oopPaid] = await Promise.all([
+          const [usedAgg, deductiblePaidIn, oopPaidIn, deductiblePaidOut, oopPaidOut] = await Promise.all([
             prisma.claim.aggregate({
               where: { patientId: userId, policyId: up.policyId, status: { in: ['APPROVED', 'PAID'] }, createdAt: { gte: yearStart, lt: yearEnd } },
               _sum: { totalAmount: true, reimbursable: true },
             }),
-            getDeductiblePaid(userId, up.policyId, planYearStart),
-            getOopPaid(userId, up.policyId, planYearStart),
+            getDeductiblePaid(userId, up.policyId, planYearStart, undefined, 'IN'),
+            getOopPaid(userId, up.policyId, planYearStart, undefined, 'IN'),
+            getDeductiblePaid(userId, up.policyId, planYearStart, undefined, 'OUT'),
+            getOopPaid(userId, up.policyId, planYearStart, undefined, 'OUT'),
           ]);
 
           return {
@@ -386,8 +388,12 @@ router.get(
             usedAmount: usedAgg._sum.totalAmount ?? 0,
             reimbursedAmount: usedAgg._sum.reimbursable ?? 0,
             remainingCoverage: Math.max(0, up.policy.coverageAmount - (usedAgg._sum.totalAmount ?? 0)),
-            deductiblePaid,
-            oopPaid,
+            deductiblePaid: deductiblePaidIn,
+            oopPaid: oopPaidIn,
+            inNetworkDeductiblePaid: deductiblePaidIn,
+            inNetworkOopPaid: oopPaidIn,
+            outOfNetworkDeductiblePaid: deductiblePaidOut,
+            outOfNetworkOopPaid: oopPaidOut,
             isExpired: new Date(up.policy.expiryDate) < new Date(),
             expiresInDays: Math.ceil((new Date(up.policy.expiryDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)),
           };

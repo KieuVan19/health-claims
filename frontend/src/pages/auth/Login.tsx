@@ -70,7 +70,13 @@ const Login: React.FC = () => {
       const result = await login(data.email, data.password)
       setAuth(result.user, result.token)
       if (result.user.role !== 'ADMIN') startPolling()
-      navigate('/dashboard')
+      const dashboardMap: Record<string, string> = {
+        PATIENT: '/patient/dashboard',
+        ADJUSTER: '/adjuster/dashboard',
+        FINANCE_OFFICER: '/finance/dashboard',
+        ADMIN: '/admin/dashboard',
+      }
+      navigate(dashboardMap[result.user.role] || '/patient/dashboard')
     } catch (error: unknown) {
       const err = error as { response?: { data?: { error?: string; message?: string } } }
       const errorMessage = err.response?.data?.error || err.response?.data?.message || 'username or password is incorrect'

@@ -16,6 +16,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import toast from 'react-hot-toast'
 import { getPolicies, createPolicy, updatePolicy, deletePolicy } from '../../api/policies'
+import { getSystemSettings } from '../../api/admin'
 import { Policy, PolicyType } from '../../types'
 import LoadingSpinner from '../../components/LoadingSpinner'
 import EmptyState from '../../components/EmptyState'
@@ -54,6 +55,7 @@ const PolicyManagement: React.FC = () => {
   const [policies, setPolicies] = useState<Policy[]>([])
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState(false)
+  const [outOfNetworkEnabled, setOutOfNetworkEnabled] = useState(false)
 
   const [showModal, setShowModal] = useState(false)
   const [modalMode, setModalMode] = useState<'create' | 'edit' | 'clone'>('create')
@@ -74,8 +76,12 @@ const PolicyManagement: React.FC = () => {
   const fetchPolicies = useCallback(async () => {
     setLoading(true)
     try {
-      const data = await getPolicies()
+      const [data, settings] = await Promise.all([
+        getPolicies(),
+        getSystemSettings(),
+      ])
       setPolicies(data)
+      setOutOfNetworkEnabled(settings.outOfNetworkEnabled === 'true')
     } catch {
       setPolicies([])
     } finally {
@@ -104,7 +110,7 @@ const PolicyManagement: React.FC = () => {
   const openCreate = () => {
     setEditingPolicy(null)
     setModalMode('create')
-    form.reset({ type: 'STANDARD', copayPercentage: '20', deductible: '0', oopMax: '8000', oonDeductible: '0', oonCopayPercent: '0', filingDeadlineDays: '365' })
+    form.reset({ type: 'STANDARD', copayPercentage: '20', deductible: '250', oopMax: '8000', oonDeductible: '0', oonCopayPercent: '0', filingDeadlineDays: '365' })
     setShowModal(true)
   }
 
@@ -177,8 +183,8 @@ const PolicyManagement: React.FC = () => {
       deductible: Number(data.deductible),
       copayPercentage: Number(data.copayPercentage),
       oopMax: Number(data.oopMax),
-      oonDeductible: Number(data.oonDeductible),
-      oonCopayPercent: Number(data.oonCopayPercent),
+      oonDeductible: 0,
+      oonCopayPercent: outOfNetworkEnabled ? Number(data.oonCopayPercent) : 0,
       filingDeadlineDays: Number(data.filingDeadlineDays),
       benefits: Object.fromEntries(limitEntries),
     }
@@ -351,7 +357,8 @@ const PolicyManagement: React.FC = () => {
                   <th className="table-header">Type</th>
                   <th className="table-header">Coverage</th>
                   <th className="table-header">Deductible</th>
-                  <th className="table-header">Copay</th>
+                  <th className="table-header">{outOfNetworkEnabled ? 'In-Network Copay' : 'Copay'}</th>
+                  {outOfNetworkEnabled && <th className="table-header">Out-of-Network Copay</th>}
                   <th className="table-header">OOP Max</th>
                   <th className="table-header">Filing Deadline</th>
                   <th className="table-header">Effective Date</th>
@@ -381,6 +388,7 @@ const PolicyManagement: React.FC = () => {
                       <td className="table-cell font-medium">{formatCurrency(policy.coverageAmount ?? policy.coverageLimit ?? 0)}</td>
                       <td className="table-cell">{formatCurrency(policy.deductible)}</td>
                       <td className="table-cell">{policy.copayPercentage ?? 0}%</td>
+                      {outOfNetworkEnabled && <td className="table-cell">{policy.oonCopayPercent ?? 0}%</td>}
                       <td className="table-cell">{formatCurrency(policy.oopMax ?? 8000)}</td>
                       <td className="table-cell">{policy.filingDeadlineDays ?? 365} days</td>
                       <td className="table-cell text-gray-600">
@@ -444,6 +452,10 @@ const PolicyManagement: React.FC = () => {
                 <input type="text" className={`form-input ${form.formState.errors.name ? 'border-red-500' : ''}`} placeholder="e.g. Standard Health Plan" {...form.register('name')} />
                 {form.formState.errors.name && <p className="form-error">{form.formState.errors.name.message}</p>}
               </div>
+              <div>
+                <label className="form-label">Description</label>
+                <textarea rows={2} className="form-input resize-none" placeholder="Optional description..." {...form.register('description')} />
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="form-label">Type</label>
@@ -454,15 +466,18 @@ const PolicyManagement: React.FC = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="form-label">Copay %</label>
+                  <label className="form-label">{outOfNetworkEnabled ? 'In-Network Copay %' : 'Copay %'}</label>
                   <input type="number" step="1" min="0" max="100" className={`form-input ${form.formState.errors.copayPercentage ? 'border-red-500' : ''}`} {...form.register('copayPercentage')} />
                   {form.formState.errors.copayPercentage && <p className="form-error">{form.formState.errors.copayPercentage.message}</p>}
                 </div>
               </div>
-              <div>
-                <label className="form-label">Description</label>
-                <textarea rows={2} className="form-input resize-none" placeholder="Optional description..." {...form.register('description')} />
-              </div>
+              {outOfNetworkEnabled && (
+                <div>
+                  <label className="form-label">Out-of-Network Copay %</label>
+                  <input type="number" step="1" min="0" max="100" className={`form-input ${form.formState.errors.oonCopayPercent ? 'border-red-500' : ''}`} {...form.register('oonCopayPercent')} />
+                  {form.formState.errors.oonCopayPercent && <p className="form-error">{form.formState.errors.oonCopayPercent.message}</p>}
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="form-label">Coverage Amount ($)</label>
@@ -470,7 +485,7 @@ const PolicyManagement: React.FC = () => {
                   {form.formState.errors.coverageAmount && <p className="form-error">{form.formState.errors.coverageAmount.message}</p>}
                 </div>
                 <div>
-                  <label className="form-label">Deductible ($)</label>
+                  <label className="form-label">{outOfNetworkEnabled ? 'Deductible (both networks)' : 'Deductible'} ($)</label>
                   <input type="number" step="0.01" min="0" className={`form-input ${form.formState.errors.deductible ? 'border-red-500' : ''}`} {...form.register('deductible')} />
                   {form.formState.errors.deductible && <p className="form-error">{form.formState.errors.deductible.message}</p>}
                 </div>
@@ -485,21 +500,6 @@ const PolicyManagement: React.FC = () => {
                   <label className="form-label">Filing Deadline (days)</label>
                   <input type="number" step="1" min="1" className={`form-input ${form.formState.errors.filingDeadlineDays ? 'border-red-500' : ''}`} {...form.register('filingDeadlineDays')} />
                   {form.formState.errors.filingDeadlineDays && <p className="form-error">{form.formState.errors.filingDeadlineDays.message}</p>}
-                </div>
-              </div>
-              <div>
-                <label className="form-label">Out-of-Network Rates</label>
-                <div className="grid grid-cols-2 gap-3 mt-1">
-                  <div>
-                    <label className="text-xs text-gray-500">OON Deductible ($)</label>
-                    <input type="number" step="0.01" min="0" className={`form-input ${form.formState.errors.oonDeductible ? 'border-red-500' : ''}`} {...form.register('oonDeductible')} />
-                    {form.formState.errors.oonDeductible && <p className="form-error">{form.formState.errors.oonDeductible.message}</p>}
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-500">OON Copay %</label>
-                    <input type="number" step="1" min="0" max="100" className={`form-input ${form.formState.errors.oonCopayPercent ? 'border-red-500' : ''}`} {...form.register('oonCopayPercent')} />
-                    {form.formState.errors.oonCopayPercent && <p className="form-error">{form.formState.errors.oonCopayPercent.message}</p>}
-                  </div>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">

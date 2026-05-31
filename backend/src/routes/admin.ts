@@ -936,7 +936,7 @@ router.delete(
 
 // ─── System Settings ─────────────────────────────────────────────────────────
 
-const ALLOWED_SETTINGS = ['autoAssignEnabled', 'diagnosisCodesEnabled', 'cptCodesEnabled'] as const;
+const ALLOWED_SETTINGS = ['autoAssignEnabled', 'diagnosisCodesEnabled', 'cptCodesEnabled', 'outOfNetworkEnabled'] as const;
 type SettingKey = (typeof ALLOWED_SETTINGS)[number];
 
 const settingValueSchema = z.object({ value: z.string() });
@@ -954,6 +954,7 @@ router.get(
         autoAssignEnabled: 'false',
         diagnosisCodesEnabled: 'false',
         cptCodesEnabled: 'false',
+        outOfNetworkEnabled: 'false',
       };
       const result: Record<string, string> = { ...defaults };
       for (const row of rows) result[row.key] = row.value;

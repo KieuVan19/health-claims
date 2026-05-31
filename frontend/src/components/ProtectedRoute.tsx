@@ -16,7 +16,13 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ allowedRoles, children 
   }
 
   if (allowedRoles && user && !allowedRoles.includes(user.role)) {
-    return <Navigate to="/dashboard" replace />
+    const dashboardMap: Record<string, string> = {
+      PATIENT: '/patient/dashboard',
+      ADJUSTER: '/adjuster/dashboard',
+      FINANCE_OFFICER: '/finance/dashboard',
+      ADMIN: '/admin/dashboard',
+    }
+    return <Navigate to={dashboardMap[user.role] || '/patient/dashboard'} replace />
   }
 
   if (children) {

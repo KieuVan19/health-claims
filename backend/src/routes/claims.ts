@@ -502,8 +502,8 @@ router.post(
       }
 
       const [deductiblePaid, oopPaid] = await Promise.all([
-        getDeductiblePaid(req.user!.id, data.policyId, planYearStart, undefined, networkStatus),
-        getOopPaid(req.user!.id, data.policyId, planYearStart, undefined, networkStatus),
+        getDeductiblePaid(req.user!.id, data.policyId, planYearStart, undefined),
+        getOopPaid(req.user!.id, data.policyId, planYearStart, undefined),
       ]);
       const { eligibleAmount, deductible, reimbursable } = calculateEligible(data.totalAmount, userPolicy.policy, deductiblePaid, oopPaid, networkStatus);
       const claimNumber = await generateClaimNumber();
@@ -848,7 +848,7 @@ router.get(
       pdfDoc.text(`Date of Service: ${new Date(claim.incidentDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`);
       pdfDoc.text(`Provider: ${claim.description}`);
       const fallbackNetworkLabel = claim.networkStatus === 'OUT' ? 'Out-of-Network' : 'In-Network';
-      const fallbackCopayRate = claim.networkStatus === 'OUT' ? (claim.policy.oonCopayPercent ?? claim.policy.copayPercentage) : claim.policy.copayPercentage;
+      const fallbackCopayRate = claim.networkStatus === 'OUT' ? claim.policy.copayPercentage * 2 : claim.policy.copayPercentage;
       pdfDoc.text(`Network Tier: ${fallbackNetworkLabel}`);
       pdfDoc.text(`Applied Copay Rate: ${fallbackCopayRate}%`);
       if (claim.adjuster) {
@@ -992,8 +992,8 @@ router.put(
       if (data.totalAmount !== undefined) {
         const yearStart = claim.planYearStart ?? new Date(new Date().getFullYear(), 0, 1);
         const [deductiblePaid, oopPaid] = await Promise.all([
-          getDeductiblePaid(claim.patientId, claim.policyId, yearStart, claim.id, networkStatus),
-          getOopPaid(claim.patientId, claim.policyId, yearStart, claim.id, networkStatus),
+          getDeductiblePaid(claim.patientId, claim.policyId, yearStart, claim.id),
+          getOopPaid(claim.patientId, claim.policyId, yearStart, claim.id),
         ]);
         const result = calculateEligible(data.totalAmount, claim.policy, deductiblePaid, oopPaid, networkStatus);
         eligibleAmount = result.eligibleAmount;
@@ -1379,8 +1379,8 @@ router.post(
       const planYearStart = claim.planYearStart ?? new Date(new Date().getFullYear(), 0, 1);
       const claimNetworkStatus = (claim.networkStatus as 'IN' | 'OUT') ?? 'IN';
       const [deductiblePaid, oopPaid] = await Promise.all([
-        getDeductiblePaid(claim.patientId, claim.policyId, planYearStart, claim.id, claimNetworkStatus),
-        getOopPaid(claim.patientId, claim.policyId, planYearStart, claim.id, claimNetworkStatus),
+        getDeductiblePaid(claim.patientId, claim.policyId, planYearStart, claim.id),
+        getOopPaid(claim.patientId, claim.policyId, planYearStart, claim.id),
       ]);
       const { eligibleAmount: calculatedEligible } = calculateEligible(claim.totalAmount, claim.policy, deductiblePaid, oopPaid, claimNetworkStatus);
 
@@ -2359,8 +2359,8 @@ router.post(
       const claimNetworkStatus = (primaryClaim.networkStatus as 'IN' | 'OUT') ?? 'IN';
 
       const [deductiblePaid, oopPaid] = await Promise.all([
-        getDeductiblePaid(primaryClaim.patientId, data.secondaryPolicyId, planYearStart, undefined, claimNetworkStatus),
-        getOopPaid(primaryClaim.patientId, data.secondaryPolicyId, planYearStart, undefined, claimNetworkStatus),
+        getDeductiblePaid(primaryClaim.patientId, data.secondaryPolicyId, planYearStart, undefined),
+        getOopPaid(primaryClaim.patientId, data.secondaryPolicyId, planYearStart, undefined),
       ]);
 
       const { eligibleAmount, deductible, reimbursable: rawReimbursable } = calculateEligible(

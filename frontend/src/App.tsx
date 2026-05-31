@@ -45,6 +45,17 @@ import SystemSettings from './pages/admin/SystemSettings'
 
 import LoadingSpinner from './components/LoadingSpinner'
 
+const RoleBasedDashboardRedirect: React.FC = () => {
+  const { user } = useAuthStore()
+  const dashboardMap: Record<string, string> = {
+    PATIENT: '/patient/dashboard',
+    ADJUSTER: '/adjuster/dashboard',
+    FINANCE_OFFICER: '/finance/dashboard',
+    ADMIN: '/admin/dashboard',
+  }
+  return <Navigate to={dashboardMap[user?.role!] || '/patient/dashboard'} replace />
+}
+
 function App() {
   const { initialize, isLoading, isAuthenticated, user } = useAuthStore()
   const { startPolling, stopPolling } = useNotificationStore()
@@ -80,17 +91,23 @@ function App() {
       {/* Protected routes with layout */}
       <Route element={<ProtectedRoute />}>
         <Route element={<Layout />}>
-          {/* Root redirect */}
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/profile" element={<Profile />} />
+          {/* Root redirect — determine dashboard based on role */}
+          <Route path="/" element={<RoleBasedDashboardRedirect />} />
 
           {/* Patient routes */}
           <Route
             path="/patient/dashboard"
             element={
               <ProtectedRoute allowedRoles={['PATIENT']}>
-                <PatientDashboard />
+                <Dashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/patient/profile"
+            element={
+              <ProtectedRoute allowedRoles={['PATIENT']}>
+                <Profile />
               </ProtectedRoute>
             }
           />
@@ -148,7 +165,15 @@ function App() {
             path="/adjuster/dashboard"
             element={
               <ProtectedRoute allowedRoles={['ADJUSTER']}>
-                <AdjusterDashboard />
+                <Dashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/adjuster/profile"
+            element={
+              <ProtectedRoute allowedRoles={['ADJUSTER']}>
+                <Profile />
               </ProtectedRoute>
             }
           />
@@ -169,12 +194,20 @@ function App() {
             }
           />
 
-          {/* Finance routes */}
+          {/* Finance Officer routes */}
           <Route
             path="/finance/dashboard"
             element={
               <ProtectedRoute allowedRoles={['FINANCE_OFFICER']}>
-                <FinanceDashboard />
+                <Dashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/finance/profile"
+            element={
+              <ProtectedRoute allowedRoles={['FINANCE_OFFICER']}>
+                <Profile />
               </ProtectedRoute>
             }
           />
@@ -210,6 +243,14 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/finance/reports/tat"
+            element={
+              <ProtectedRoute allowedRoles={['FINANCE_OFFICER']}>
+                <TatReport />
+              </ProtectedRoute>
+            }
+          />
 
           {/* Admin routes */}
           <Route
@@ -217,6 +258,14 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['ADMIN']}>
                 <AdminDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/profile"
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN']}>
+                <Profile />
               </ProtectedRoute>
             }
           />
@@ -263,7 +312,7 @@ function App() {
           <Route
             path="/admin/reports/tat"
             element={
-              <ProtectedRoute allowedRoles={['ADMIN', 'FINANCE_OFFICER']}>
+              <ProtectedRoute allowedRoles={['ADMIN']}>
                 <TatReport />
               </ProtectedRoute>
             }
