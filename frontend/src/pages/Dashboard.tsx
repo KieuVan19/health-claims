@@ -2,11 +2,6 @@ import React from 'react'
 import { Navigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 
-import PatientDashboard from './patient/PatientDashboard'
-import AdjusterDashboard from './adjuster/AdjusterDashboard'
-import FinanceDashboard from './finance/FinanceDashboard'
-import AdminDashboard from './admin/AdminDashboard'
-
 const Dashboard: React.FC = () => {
   const { user } = useAuthStore()
 
@@ -14,11 +9,11 @@ const Dashboard: React.FC = () => {
 
   switch (user.role) {
     case 'PATIENT':
-      return <PatientDashboard />
+      return <Navigate to="/patient/dashboard" replace />
     case 'ADJUSTER':
-      return <AdjusterDashboard />
+      return <Navigate to="/adjuster/dashboard" replace />
     case 'FINANCE_OFFICER':
-      return <FinanceDashboard />
+      return <Navigate to="/finance/dashboard" replace />
     case 'ADMIN':
       return <Navigate to="/admin/dashboard" replace />
     default:

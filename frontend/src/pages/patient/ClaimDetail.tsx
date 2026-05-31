@@ -64,7 +64,7 @@ const ClaimDetail: React.FC = () => {
       setClaim(data)
     } catch {
       toast.error('Failed to load claim')
-      navigate('/claims')
+      navigate('/patient/claims')
     } finally {
       setLoading(false)
     }
@@ -95,7 +95,7 @@ const ClaimDetail: React.FC = () => {
     try {
       await deleteClaim(claim.id)
       toast.success('Claim deleted')
-      navigate('/claims')
+      navigate('/patient/claims')
     } catch (error: unknown) {
       const err = error as { response?: { data?: { error?: string } } }
       toast.error(err.response?.data?.error || 'Failed to delete claim')
@@ -201,7 +201,7 @@ const ClaimDetail: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <Link to="/claims" className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700">
+      <Link to="/patient/claims" className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700">
         <ArrowLeft className="h-4 w-4" /> Back to Claims
       </Link>
 

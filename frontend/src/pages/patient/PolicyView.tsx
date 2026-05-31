@@ -226,7 +226,7 @@ const PolicyView: React.FC = () => {
                 <div className="flex justify-end mb-4">
                   <button
                     type="button"
-                    onClick={() => navigate('/policies/history')}
+                    onClick={() => navigate('/patient/policies/history')}
                     className="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 font-medium"
                   >
                     <History className="h-4 w-4" />

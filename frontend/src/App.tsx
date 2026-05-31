@@ -87,7 +87,15 @@ function App() {
 
           {/* Patient routes */}
           <Route
-            path="/claims"
+            path="/patient/dashboard"
+            element={
+              <ProtectedRoute allowedRoles={['PATIENT']}>
+                <PatientDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/patient/claims"
             element={
               <ProtectedRoute allowedRoles={['PATIENT']}>
                 <ClaimList />
@@ -95,7 +103,7 @@ function App() {
             }
           />
           <Route
-            path="/claims/new"
+            path="/patient/claims/new"
             element={
               <ProtectedRoute allowedRoles={['PATIENT']}>
                 <NewClaim />
@@ -103,7 +111,7 @@ function App() {
             }
           />
           <Route
-            path="/claims/:id"
+            path="/patient/claims/:id"
             element={
               <ProtectedRoute allowedRoles={['PATIENT']}>
                 <ClaimDetail />
@@ -111,7 +119,7 @@ function App() {
             }
           />
           <Route
-            path="/claims/:id/edit"
+            path="/patient/claims/:id/edit"
             element={
               <ProtectedRoute allowedRoles={['PATIENT']}>
                 <EditClaim />
@@ -119,7 +127,7 @@ function App() {
             }
           />
           <Route
-            path="/policies"
+            path="/patient/policies"
             element={
               <ProtectedRoute allowedRoles={['PATIENT']}>
                 <PolicyView />
@@ -127,7 +135,7 @@ function App() {
             }
           />
           <Route
-            path="/policies/history"
+            path="/patient/policies/history"
             element={
               <ProtectedRoute allowedRoles={['PATIENT']}>
                 <PolicyHistory />
@@ -136,6 +144,14 @@ function App() {
           />
 
           {/* Adjuster routes */}
+          <Route
+            path="/adjuster/dashboard"
+            element={
+              <ProtectedRoute allowedRoles={['ADJUSTER']}>
+                <AdjusterDashboard />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/adjuster/claims"
             element={
@@ -154,6 +170,14 @@ function App() {
           />
 
           {/* Finance routes */}
+          <Route
+            path="/finance/dashboard"
+            element={
+              <ProtectedRoute allowedRoles={['FINANCE_OFFICER']}>
+                <FinanceDashboard />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/finance/payouts"
             element={

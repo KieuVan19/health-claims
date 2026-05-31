@@ -5,11 +5,14 @@ import Topbar from './Topbar'
 
 const pageTitles: Record<string, string> = {
   '/dashboard': 'Dashboard',
-  '/claims': 'My Claims',
-  '/claims/new': 'New Claim',
-  '/policies': 'My Policies',
+  '/patient/dashboard': 'Dashboard',
+  '/patient/claims': 'My Claims',
+  '/patient/claims/new': 'New Claim',
+  '/patient/policies': 'My Policies',
   '/profile': 'My Profile',
+  '/adjuster/dashboard': 'Dashboard',
   '/adjuster/claims': 'Claims Queue',
+  '/finance/dashboard': 'Dashboard',
   '/finance/payouts': 'Payouts',
   '/finance/reports': 'Finance Reports',
   '/admin/dashboard': 'Admin Dashboard',
@@ -29,9 +32,10 @@ const Layout: React.FC = () => {
     // Check exact match
     if (pageTitles[location.pathname]) return pageTitles[location.pathname]
     // Check if it's a claims detail page
-    if (location.pathname.match(/^\/claims\/[^/]+\/edit$/)) return 'Edit Claim'
-    if (location.pathname.startsWith('/claims/')) return 'Claim Details'
+    if (location.pathname.match(/^\/patient\/claims\/[^/]+\/edit$/)) return 'Edit Claim'
+    if (location.pathname.startsWith('/patient/claims/')) return 'Claim Details'
     if (location.pathname.startsWith('/adjuster/claims/')) return 'Claim Review'
+    if (location.pathname.startsWith('/admin/claims/')) return 'Claim Review'
     return ''
   }
 

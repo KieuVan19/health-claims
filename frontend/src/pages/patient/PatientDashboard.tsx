@@ -130,7 +130,7 @@ const PatientDashboard: React.FC = () => {
           <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
             <h2 className="text-base font-semibold text-gray-900">Recent Claims</h2>
             <Link
-              to="/claims"
+              to="/patient/claims"
               className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
             >
               View all <ChevronRight className="h-4 w-4" />
@@ -143,7 +143,7 @@ const PatientDashboard: React.FC = () => {
               title="No claims yet"
               description="Submit your first claim to get started"
               action={
-                <Link to="/claims/new" className="btn-primary text-sm">
+                <Link to="/patient/claims/new" className="btn-primary text-sm">
                   <PlusCircle className="h-4 w-4" />
                   Submit a Claim
                 </Link>
@@ -154,7 +154,7 @@ const PatientDashboard: React.FC = () => {
               {recentClaims.map((claim) => (
                 <Link
                   key={claim.id}
-                  to={`/claims/${claim.id}`}
+                  to={`/patient/claims/${claim.id}`}
                   className="flex items-center justify-between px-5 py-3.5 hover:bg-gray-50 transition-colors group"
                   data-testid="recent-claim-row"
                 >
@@ -199,7 +199,7 @@ const PatientDashboard: React.FC = () => {
             <h3 className="font-semibold mb-1">Submit a Claim</h3>
             <p className="text-blue-100 text-sm mb-4">Start a new reimbursement request</p>
             <Link
-              to="/claims/new"
+              to="/patient/claims/new"
               className="inline-flex items-center gap-2 px-4 py-2 bg-white text-blue-600 text-sm font-semibold rounded-lg hover:bg-blue-50 transition-colors"
               data-testid="quick-new-claim-btn"
             >
@@ -249,7 +249,7 @@ const PatientDashboard: React.FC = () => {
                   </div>
                 </div>
                 <Link
-                  to="/policies"
+                  to="/patient/policies"
                   className="mt-2 text-xs text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
                 >
                   View details <ChevronRight className="h-3 w-3" />
