@@ -58,7 +58,7 @@ const EditClaim: React.FC = () => {
       })
       .catch(() => {
         toast.error('Failed to load claim')
-        navigate('/claims')
+        navigate('/patient/claims')
       })
       .finally(() => setLoading(false))
   }, [id, navigate])
@@ -123,7 +123,7 @@ const EditClaim: React.FC = () => {
         diagnosisCodes: getValidDiagnosisCodes(),
       })
       toast.success('Draft saved')
-      navigate(`/claims/${id}`)
+      navigate(`/patient/claims/${id}`)
     } catch (error: unknown) {
       const err = error as { response?: { data?: { message?: string } } }
       toast.error(err.response?.data?.message || 'Failed to save draft')
@@ -145,7 +145,7 @@ const EditClaim: React.FC = () => {
       })
       await submitClaim(id)
       toast.success('Claim submitted successfully!')
-      navigate(`/claims/${id}`)
+      navigate(`/patient/claims/${id}`)
     } catch (error: unknown) {
       const err = error as { response?: { data?: { error?: string; message?: string } } }
       toast.error(err.response?.data?.error || err.response?.data?.message || 'Failed to submit claim')

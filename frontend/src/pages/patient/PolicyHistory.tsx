@@ -53,7 +53,7 @@ const PolicyHistory: React.FC = () => {
       <div className="flex items-center gap-3">
         <button
           type="button"
-          onClick={() => navigate('/policies')}
+          onClick={() => navigate('/patient/policies')}
           className="btn-secondary"
         >
           <ChevronLeft className="h-4 w-4" /> Back

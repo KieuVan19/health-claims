@@ -332,7 +332,7 @@ const NewClaim: React.FC = () => {
         await uploadDocuments(claim.id, files)
       }
       toast.success('Claim saved as draft')
-      navigate(`/claims/${claim.id}`)
+      navigate(`/patient/claims/${claim.id}`)
     } catch (error: unknown) {
       const err = error as { response?: { data?: { message?: string } } }
       toast.error(err.response?.data?.message || 'Failed to save draft')
@@ -343,14 +343,14 @@ const NewClaim: React.FC = () => {
 
   const handleDelete = async () => {
     if (!createdClaimId) {
-      navigate('/claims')
+      navigate('/patient/claims')
       return
     }
     setDeleting(true)
     try {
       await deleteClaim(createdClaimId)
       toast.success('Claim deleted')
-      navigate('/claims')
+      navigate('/patient/claims')
     } catch (error: unknown) {
       const err = error as { response?: { data?: { message?: string } } }
       toast.error(err.response?.data?.message || 'Failed to delete claim')
@@ -387,7 +387,7 @@ const NewClaim: React.FC = () => {
       }
       await submitClaim(claimId)
       toast.success('Claim submitted successfully!')
-      navigate(`/claims/${claimId}`)
+      navigate(`/patient/claims/${claimId}`)
     } catch (error: unknown) {
       const err = error as { response?: { data?: { error?: string; message?: string } } }
       toast.error(err.response?.data?.error || err.response?.data?.message || 'Failed to submit claim')

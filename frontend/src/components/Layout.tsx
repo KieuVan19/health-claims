@@ -4,6 +4,7 @@ import Sidebar from './Sidebar'
 import Topbar from './Topbar'
 
 const pageTitles: Record<string, string> = {
+  '/dashboard': 'Dashboard',
   '/patient/dashboard': 'Dashboard',
   '/patient/profile': 'My Profile',
   '/patient/claims': 'My Claims',

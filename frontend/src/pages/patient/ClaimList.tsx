@@ -106,7 +106,7 @@ const ClaimList: React.FC = () => {
           <h1 className="text-2xl font-bold text-gray-900">My Claims</h1>
           <p className="text-sm text-gray-500 mt-0.5">{total} claim{total !== 1 ? 's' : ''} total</p>
         </div>
-        <Link to="/claims/new" className="btn-primary" data-testid="new-claim-btn">
+        <Link to="/patient/claims/new" className="btn-primary" data-testid="new-claim-btn">
           <PlusCircle className="h-4 w-4" />
           New Claim
         </Link>
@@ -199,7 +199,7 @@ const ClaimList: React.FC = () => {
             description={search || statusFilter || typeFilter ? 'Try adjusting your filters' : 'Submit your first claim to get started'}
             action={
               !search && !statusFilter && !typeFilter ? (
-                <Link to="/claims/new" className="btn-primary text-sm">
+                <Link to="/patient/claims/new" className="btn-primary text-sm">
                   <PlusCircle className="h-4 w-4" />
                   Submit a Claim
                 </Link>
