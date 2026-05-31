@@ -4,4 +4,9 @@ on:
     branches: [ main, master ]
   pull_request:
     branches: [ main, master ]
-jobs: {}
+jobs:
+  playwright:
+    name: Playwright Tests
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Playwright e2e tests are currently disabled"
