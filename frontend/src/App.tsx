@@ -99,7 +99,7 @@ function App() {
             path="/patient/dashboard"
             element={
               <ProtectedRoute allowedRoles={['PATIENT']}>
-                <Dashboard />
+                <PatientDashboard />
               </ProtectedRoute>
             }
           />
@@ -165,7 +165,7 @@ function App() {
             path="/adjuster/dashboard"
             element={
               <ProtectedRoute allowedRoles={['ADJUSTER']}>
-                <Dashboard />
+                <AdjusterDashboard />
               </ProtectedRoute>
             }
           />
@@ -199,7 +199,7 @@ function App() {
             path="/finance/dashboard"
             element={
               <ProtectedRoute allowedRoles={['FINANCE_OFFICER']}>
-                <Dashboard />
+                <FinanceDashboard />
               </ProtectedRoute>
             }
           />
