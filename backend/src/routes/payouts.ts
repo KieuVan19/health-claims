@@ -10,6 +10,7 @@ import { createNotification } from '../utils/notification';
 import { sendClaimPaid } from '../services/email';
 import { applyRecoupment, markOffsets } from '../services/overpayments';
 import { paginatedResponse } from '../utils/response';
+import { parseDateRange, buildSearchWhere } from '../utils/filters';
 import { CLAIM_STATUSES } from '../constants/enums';
 
 const router = Router();
@@ -80,24 +81,11 @@ router.get(
 
       const where: Record<string, unknown> = { status: queryStatus };
 
-      if (search) {
-        where['OR'] = [
-          { claimNumber: { contains: search } },
-          { type: { contains: search } },
-          { patient: { firstName: { contains: search } } },
-          { patient: { lastName: { contains: search } } },
-          { payout: { paymentRef: { contains: search } } },
-        ];
-      }
+      const searchWhere = buildSearchWhere(search, ['claimNumber', 'type', 'patient.firstName', 'patient.lastName', 'payout.paymentRef']);
+      if (searchWhere) where['OR'] = searchWhere.OR;
 
-      if (from || to) {
-        const dateFilter: Record<string, Date> = {};
-        if (from) dateFilter['gte'] = new Date(from);
-        if (to) {
-          const toDate = new Date(to);
-          toDate.setHours(23, 59, 59, 999);
-          dateFilter['lte'] = toDate;
-        }
+      const dateFilter = parseDateRange(from, to);
+      if (dateFilter) {
         if (queryStatus === 'PAID') {
           where['payout'] = { paidAt: dateFilter };
         } else {
@@ -435,14 +423,8 @@ router.get(
       const { from, to } = req.query as Record<string, string>;
 
       const where: Record<string, unknown> = { status: 'PAID' };
-      if (from || to) {
-        const dateFilter: Record<string, Date> = {};
-        if (from) dateFilter['gte'] = new Date(from);
-        if (to) {
-          const toDate = new Date(to);
-          toDate.setHours(23, 59, 59, 999);
-          dateFilter['lte'] = toDate;
-        }
+      const dateFilter = parseDateRange(from, to);
+      if (dateFilter) {
         where['payout'] = { paidAt: dateFilter };
       }
 

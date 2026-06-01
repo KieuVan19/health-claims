@@ -7,6 +7,7 @@ import { requireRole } from '../middleware/roles';
 import { validate } from '../middleware/validate';
 import { createAuditLog, logRead } from '../utils/audit';
 import { paginatedResponse } from '../utils/response';
+import { buildSearchWhere } from '../utils/filters';
 import { USER_ROLES } from '../constants/enums';
 
 const router = Router();
@@ -84,13 +85,9 @@ router.get(
 
       const where: Record<string, unknown> = {};
       if (role) where['role'] = role;
-      if (search) {
-        where['OR'] = [
-          { email: { contains: search } },
-          { firstName: { contains: search } },
-          { lastName: { contains: search } },
-        ];
-      }
+
+      const searchWhere = buildSearchWhere(search, ['email', 'firstName', 'lastName']);
+      if (searchWhere) where['OR'] = searchWhere.OR;
 
       const [total, users] = await Promise.all([
         prisma.user.count({ where }),
