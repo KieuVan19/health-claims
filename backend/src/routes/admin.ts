@@ -6,8 +6,9 @@ import { authenticate } from '../middleware/auth';
 import { requireRole } from '../middleware/roles';
 import { validate } from '../middleware/validate';
 import { createAuditLog, logRead } from '../utils/audit';
-import { getPaginationParams } from '../utils/pagination';
+import { getPaginationParams, createPaginatedResponse } from '../utils/pagination';
 import { passwordSchema, firstNameSchema, lastNameSchema } from '../schemas/common';
+import { USER_ROLES, CLAIM_STATUSES, PAYER_ORDERS, PLAN_YEAR_TYPES } from '../constants/enums';
 
 const router = Router();
 
@@ -21,13 +22,13 @@ const createUserSchema = z.object({
   password: passwordSchema,
   firstName: firstNameSchema,
   lastName: lastNameSchema,
-  role: z.enum(['PATIENT', 'ADJUSTER', 'FINANCE_OFFICER', 'ADMIN']),
+  role: z.enum([USER_ROLES.PATIENT, USER_ROLES.ADJUSTER, USER_ROLES.FINANCE_OFFICER, USER_ROLES.ADMIN] as const),
 });
 
 const updateUserSchema = z.object({
   firstName: z.string().min(1).max(100).optional(),
   lastName: z.string().min(1).max(100).optional(),
-  role: z.enum(['PATIENT', 'ADJUSTER', 'FINANCE_OFFICER', 'ADMIN']).optional(),
+  role: z.enum([USER_ROLES.PATIENT, USER_ROLES.ADJUSTER, USER_ROLES.FINANCE_OFFICER, USER_ROLES.ADMIN] as const).optional(),
   isActive: z.boolean().optional(),
   specialty: z.string().max(100).nullable().optional(),
 });
@@ -108,12 +109,7 @@ router.get(
         }),
       ]);
 
-      res.json({
-        users,
-        total,
-        page: pageNum,
-        totalPages: Math.ceil(total / limitNum),
-      });
+      res.json(createPaginatedResponse(users, total, pageNum, limitNum));
     } catch (err) {
       next(err);
     }
@@ -130,7 +126,7 @@ router.get(
  *       - bearerAuth: []
  *     parameters:
  *       - in: path
- *         name: id
+ *         name: userId
  *         required: true
  *         schema:
  *           type: string
@@ -141,11 +137,11 @@ router.get(
  *         description: User not found
  */
 router.get(
-  '/users/:id',
+  '/users/:userId',
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const user = await prisma.user.findUnique({
-        where: { id: req.params['id'] },
+        where: { id: req.params['userId'] },
         select: {
           id: true,
           email: true,
@@ -231,7 +227,7 @@ router.post(
  *       - bearerAuth: []
  *     parameters:
  *       - in: path
- *         name: id
+ *         name: userId
  *         required: true
  *         schema:
  *           type: string
@@ -240,14 +236,14 @@ router.post(
  *         description: User updated
  */
 router.put(
-  '/users/:id',
+  '/users/:userId',
   validate(updateUserSchema),
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const data = req.body as z.infer<typeof updateUserSchema>;
 
       const user = await prisma.user.update({
-        where: { id: req.params['id'] },
+        where: { id: req.params['userId'] },
         data: {
           ...(data.firstName !== undefined && { firstName: data.firstName }),
           ...(data.lastName !== undefined && { lastName: data.lastName }),
@@ -277,7 +273,7 @@ router.put(
  *       - bearerAuth: []
  *     parameters:
  *       - in: path
- *         name: id
+ *         name: userId
  *         required: true
  *         schema:
  *           type: string
@@ -286,16 +282,16 @@ router.put(
  *         description: User deactivated
  */
 router.delete(
-  '/users/:id',
+  '/users/:userId',
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      if (req.params['id'] === req.user!.id) {
+      if (req.params['userId'] === req.user!.id) {
         res.status(400).json({ error: 'You cannot deactivate your own account' });
         return;
       }
 
       const user = await prisma.user.update({
-        where: { id: req.params['id'] },
+        where: { id: req.params['userId'] },
         data: { isActive: false },
         select: { id: true, email: true, isActive: true },
       });
@@ -355,12 +351,7 @@ router.get(
         }),
       ]);
 
-      res.json({
-        logs,
-        total,
-        page: pageNum,
-        totalPages: Math.ceil(total / limitNum),
-      });
+      res.json(createPaginatedResponse(logs, total, pageNum, limitNum));
     } catch (err) {
       next(err);
     }
@@ -409,7 +400,7 @@ router.get(
           by: ['status'],
           _count: { id: true },
           ...(hasFilter ? { where: dateFilter } : {}),
-        }),
+        }) as unknown as Promise<Array<{ status: string; _count: { id: number } }>>,
         prisma.claim.groupBy({
           by: ['type'],
           _count: { id: true },
@@ -417,7 +408,7 @@ router.get(
           ...(hasFilter ? { where: dateFilter } : {}),
         }),
         prisma.claim.aggregate({
-          where: { status: { in: ['APPROVED', 'PAID'] }, ...dateFilter },
+          where: { status: { in: [CLAIM_STATUSES.APPROVED, CLAIM_STATUSES.PAID] }, ...dateFilter },
           _sum: { reimbursable: true, totalAmount: true },
         }),
         prisma.claim.findMany({
@@ -568,12 +559,12 @@ router.get(
         recentActivity,
       ] = await Promise.all([
         prisma.user.count({ where: { isActive: true } }),
-        prisma.claim.count({ where: { status: { in: ['SUBMITTED', 'UNDER_REVIEW', 'INFO_REQUESTED'] }, ...dateFilter } }),
-        prisma.claim.count({ where: { status: 'APPROVED', ...dateFilter } }),
-        prisma.claim.aggregate({ where: { status: 'PAID', ...dateFilter }, _sum: { reimbursable: true } }),
+        prisma.claim.count({ where: { status: { in: [CLAIM_STATUSES.SUBMITTED, CLAIM_STATUSES.UNDER_REVIEW, CLAIM_STATUSES.INFO_REQUESTED] }, ...dateFilter } }),
+        prisma.claim.count({ where: { status: CLAIM_STATUSES.APPROVED, ...dateFilter } }),
+        prisma.claim.aggregate({ where: { status: CLAIM_STATUSES.PAID, ...dateFilter }, _sum: { reimbursable: true } }),
         prisma.policy.count({ where: { isActive: true } }),
-        prisma.user.count({ where: { role: 'PATIENT', isActive: true } }),
-        prisma.user.count({ where: { role: 'ADJUSTER', isActive: true } }),
+        prisma.user.count({ where: { role: USER_ROLES.PATIENT, isActive: true } }),
+        prisma.user.count({ where: { role: USER_ROLES.ADJUSTER, isActive: true } }),
         prisma.auditLog.findMany({
           take: 8,
           orderBy: { createdAt: 'desc' },
@@ -619,7 +610,7 @@ router.get(
   async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const adjusters = await prisma.user.findMany({
-        where: { role: 'ADJUSTER', isActive: true },
+        where: { role: USER_ROLES.ADJUSTER, isActive: true },
         select: { id: true, firstName: true, lastName: true, email: true },
       });
 
@@ -629,18 +620,18 @@ router.get(
             prisma.claim.count({
               where: {
                 OR: [{ assignedAdjusterId: adj.id }, { adjusterId: adj.id }],
-                status: { in: ['SUBMITTED', 'UNDER_REVIEW', 'INFO_REQUESTED', 'INFO_RESPONDED', 'APPEAL_PENDING'] },
+                status: { in: [CLAIM_STATUSES.SUBMITTED, CLAIM_STATUSES.UNDER_REVIEW, CLAIM_STATUSES.INFO_REQUESTED, CLAIM_STATUSES.INFO_RESPONDED, CLAIM_STATUSES.APPEAL_PENDING] },
               },
             }),
             prisma.claim.count({
               where: {
                 adjusterId: adj.id,
-                status: { in: ['APPROVED', 'REJECTED', 'PAID'] },
+                status: { in: [CLAIM_STATUSES.APPROVED, CLAIM_STATUSES.REJECTED, CLAIM_STATUSES.PAID] },
                 updatedAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
               },
             }),
-            prisma.claim.count({ where: { adjusterId: adj.id, status: { in: ['APPROVED', 'PAID'] } } }),
-            prisma.claim.count({ where: { adjusterId: adj.id, status: 'REJECTED' } }),
+            prisma.claim.count({ where: { adjusterId: adj.id, status: { in: [CLAIM_STATUSES.APPROVED, CLAIM_STATUSES.PAID] } } }),
+            prisma.claim.count({ where: { adjusterId: adj.id, status: CLAIM_STATUSES.REJECTED } }),
             prisma.claim.findMany({
               where: { adjusterId: adj.id, status: { in: ['APPROVED', 'PAID'] } },
               select: { id: true },
@@ -654,7 +645,7 @@ router.get(
             const events = await prisma.claimEvent.findMany({
               where: {
                 claimId: { in: approvedClaimIds },
-                toStatus: { in: ['UNDER_REVIEW', 'APPROVED'] },
+                toStatus: { in: [CLAIM_STATUSES.UNDER_REVIEW, CLAIM_STATUSES.APPROVED] },
               },
               select: { claimId: true, toStatus: true, createdAt: true },
               orderBy: { createdAt: 'asc' },
@@ -665,8 +656,8 @@ router.get(
             const byClaimId: Record<string, { underReview?: Date; approved?: Date }> = {};
             for (const e of events) {
               if (!byClaimId[e.claimId]) byClaimId[e.claimId] = {};
-              if (e.toStatus === 'UNDER_REVIEW') byClaimId[e.claimId].underReview = e.createdAt;
-              if (e.toStatus === 'APPROVED') byClaimId[e.claimId].approved = e.createdAt;
+              if (e.toStatus === CLAIM_STATUSES.UNDER_REVIEW) byClaimId[e.claimId].underReview = e.createdAt;
+              if (e.toStatus === CLAIM_STATUSES.APPROVED) byClaimId[e.claimId].approved = e.createdAt;
             }
             for (const entry of Object.values(byClaimId)) {
               if (entry.underReview && entry.approved) {
@@ -698,7 +689,7 @@ router.get(
 
 const bulkAssignSchema = z.object({
   userIds: z.array(z.string().min(1)).min(1),
-  planYearType: z.enum(['CALENDAR', 'ANNIVERSARY']).default('CALENDAR'),
+  planYearType: z.enum([PLAN_YEAR_TYPES.CALENDAR, 'ANNIVERSARY'] as const).default(PLAN_YEAR_TYPES.CALENDAR),
 });
 
 /**
@@ -746,7 +737,7 @@ router.post(
 
       for (const userId of userIds) {
         const user = await prisma.user.findUnique({ where: { id: userId } });
-        if (!user || user.role !== 'PATIENT') {
+        if (!user || user.role !== USER_ROLES.PATIENT) {
           results.push({ userId, status: 'not_patient' });
           continue;
         }
@@ -790,6 +781,7 @@ router.get(
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const userPolicies = await prisma.userPolicy.findMany({
+        where: { deletedAt: null },
         include: {
           user: {
             select: { id: true, firstName: true, lastName: true, email: true, isActive: true },
@@ -820,7 +812,7 @@ router.get(
 
 /**
  * @openapi
- * /admin/user-policies/{id}:
+ * /admin/user-policies/{userPolicyId}:
  *   delete:
  *     tags: [Admin]
  *     summary: Remove a user-policy assignment
@@ -828,7 +820,7 @@ router.get(
  *       - bearerAuth: []
  *     parameters:
  *       - in: path
- *         name: id
+ *         name: userPolicyId
  *         required: true
  *         schema:
  *           type: string
@@ -839,12 +831,16 @@ router.get(
  *         description: Assignment not found
  */
 const updateUserPolicySchema = z.object({
-  payerOrder: z.enum(['PRIMARY', 'SECONDARY']),
+  payerOrder: z.enum([PAYER_ORDERS.PRIMARY, PAYER_ORDERS.SECONDARY] as const),
+});
+
+const bulkRemoveUserPolicySchema = z.object({
+  userPolicyIds: z.array(z.string()).min(1, 'At least one assignment ID is required'),
 });
 
 /**
  * @openapi
- * /admin/user-policies/{id}:
+ * /admin/user-policies/{userPolicyId}:
  *   patch:
  *     tags: [Admin]
  *     summary: Update payer order (PRIMARY/SECONDARY) on a user-policy assignment
@@ -852,7 +848,7 @@ const updateUserPolicySchema = z.object({
  *       - bearerAuth: []
  *     parameters:
  *       - in: path
- *         name: id
+ *         name: userPolicyId
  *         required: true
  *         schema:
  *           type: string
@@ -874,11 +870,11 @@ const updateUserPolicySchema = z.object({
  *         description: Assignment not found
  */
 router.patch(
-  '/user-policies/:id',
+  '/user-policies/:userPolicyId',
   validate(updateUserPolicySchema),
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { id } = req.params;
+      const { userPolicyId: id } = req.params;
       const { payerOrder } = req.body as z.infer<typeof updateUserPolicySchema>;
 
       const userPolicy = await prisma.userPolicy.findUnique({ where: { id } });
@@ -909,15 +905,100 @@ router.patch(
   }
 );
 
+/**
+ * @openapi
+ * /admin/user-policies/bulk:
+ *   delete:
+ *     tags: [Admin]
+ *     summary: Bulk remove user-policy assignments
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [userPolicyIds]
+ *             properties:
+ *               userPolicyIds:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *     responses:
+ *       200:
+ *         description: Bulk remove processed
+ */
 router.delete(
-  '/user-policies/:id',
+  '/user-policies/bulk',
+  validate(bulkRemoveUserPolicySchema),
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { id } = req.params;
+      const { userPolicyIds } = req.body as z.infer<typeof bulkRemoveUserPolicySchema>;
+
+      const userPolicies = await prisma.userPolicy.findMany({
+        where: {
+          id: { in: userPolicyIds },
+          deletedAt: null,
+        },
+        select: { id: true, userId: true, policyId: true },
+      });
+
+      if (userPolicies.length === 0) {
+        res.status(400).json({ error: 'No active assignments found for the provided IDs' });
+        return;
+      }
+
+      const processed: { userPolicyId: string; userId: string; policyId: string }[] = [];
+      const errors: { userPolicyId: string; error: string }[] = [];
+
+      for (const up of userPolicies) {
+        try {
+          await prisma.userPolicy.update({
+            where: { id: up.id },
+            data: { deletedAt: new Date() },
+          });
+
+          processed.push({
+            userPolicyId: up.id,
+            userId: up.userId,
+            policyId: up.policyId,
+          });
+        } catch (err) {
+          errors.push({
+            userPolicyId: up.id,
+            error: err instanceof Error ? err.message : 'Failed to remove assignment',
+          });
+        }
+      }
+
+      await createAuditLog({
+        userId: req.user!.id,
+        action: 'BULK_REMOVE_USER_POLICY',
+        resource: 'UserPolicy',
+        details: { count: processed.length, userPolicyIds },
+        ipAddress: req.ip,
+      });
+
+      res.json({ processed, errors });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+router.delete(
+  '/user-policies/:userPolicyId',
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { userPolicyId: id } = req.params;
       const userPolicy = await prisma.userPolicy.findUnique({ where: { id } });
       if (!userPolicy) { res.status(404).json({ error: 'Assignment not found' }); return; }
 
-      await prisma.userPolicy.delete({ where: { id } });
+      await prisma.userPolicy.update({
+        where: { id },
+        data: { deletedAt: new Date() },
+      });
       await createAuditLog({
         userId: req.user!.id,
         action: 'REMOVE_USER_POLICY',
@@ -1000,3 +1081,6 @@ router.put(
 );
 
 export default router;
+
+
+

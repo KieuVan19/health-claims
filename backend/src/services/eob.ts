@@ -3,6 +3,7 @@ import path from 'path';
 import PDFDocument from 'pdfkit';
 import prisma from '../lib/prisma';
 import { config } from '../config';
+import { CLAIM_STATUSES, NETWORK_STATUSES } from '../constants/enums';
 
 interface EobClaimData {
   id: string;
@@ -47,7 +48,7 @@ function buildEobPdf(claim: EobClaimData): Promise<Buffer> {
     doc.on('end', () => resolve(Buffer.concat(chunks)));
     doc.on('error', reject);
 
-    const isRejected = claim.status === 'REJECTED';
+    const isRejected = claim.status === CLAIM_STATUSES.REJECTED;
 
     doc.fontSize(20).font('Helvetica-Bold').text('Explanation of Benefits', { align: 'center' });
     doc.moveDown(0.5);
@@ -79,8 +80,8 @@ function buildEobPdf(claim: EobClaimData): Promise<Buffer> {
       `Date of Service: ${new Date(claim.incidentDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`,
     );
     doc.text(`Provider: ${claim.description}`);
-    const networkLabel = claim.networkStatus === 'OUT' ? 'Out-of-Network' : 'In-Network';
-    const appliedCopay = claim.networkStatus === 'OUT' ? claim.policy.oonCopayPercent ?? claim.policy.copayPercentage : claim.policy.copayPercentage;
+    const networkLabel = claim.networkStatus === NETWORK_STATUSES.OUT ? 'Out-of-Network' : 'In-Network';
+    const appliedCopay = claim.networkStatus === NETWORK_STATUSES.OUT ? claim.policy.oonCopayPercent ?? claim.policy.copayPercentage : claim.policy.copayPercentage;
     doc.text(`Network Tier: ${networkLabel}`);
     doc.text(`Applied Copay Rate: ${appliedCopay}%`);
     if (claim.adjuster) {

@@ -68,6 +68,7 @@ model UserPolicy {
   planYearType String   @default("CALENDAR")
   payerOrder   String   @default("PRIMARY")
   createdAt    DateTime @default(now())
+  deletedAt    DateTime?
 
   user         User     @relation(fields: [userId], references: [id])
   policy       Policy   @relation(fields: [policyId], references: [id])
@@ -120,6 +121,7 @@ model Claim {
   secondaryClaimId        String?   @unique
   createdAt               DateTime  @default(now())
   updatedAt               DateTime  @updatedAt
+  deletedAt               DateTime?
 
   patient           User         @relation("PatientClaims", fields: [patientId], references: [id])
   adjuster          User?        @relation("AdjusterClaims", fields: [adjusterId], references: [id])
@@ -168,6 +170,7 @@ model Document {
   isSystemGenerated  Boolean  @default(false)
   uploadedById       String?
   createdAt          DateTime @default(now())
+  deletedAt          DateTime?
 
   claim              Claim    @relation(fields: [claimId], references: [id], onDelete: Cascade)
   uploadedBy         User?    @relation(fields: [uploadedById], references: [id])
@@ -196,6 +199,7 @@ model InfoRequest {
   response    String?
   respondedAt DateTime?
   createdAt   DateTime  @default(now())
+  deletedAt   DateTime?
 
   claim       Claim     @relation(fields: [claimId], references: [id], onDelete: Cascade)
   from        User      @relation("InfoRequestFrom", fields: [fromId], references: [id])
@@ -226,6 +230,7 @@ model Overpayment {
   waiverReason     String?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+  deletedAt        DateTime?
 
   claim         Claim  @relation(fields: [claimId], references: [id])
   originalPayout Payout @relation(fields: [originalPayoutId], references: [id])

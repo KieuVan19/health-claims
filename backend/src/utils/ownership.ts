@@ -1,4 +1,5 @@
 import { Response } from 'express';
+import { USER_ROLES } from '../constants/enums';
 
 /**
  * Check if a patient owns a resource and send 403 if not.
@@ -28,7 +29,7 @@ export function checkPatientOwnershipIfPatient(
   userId: string,
   res: Response
 ): boolean {
-  if (role === 'PATIENT' && patientId !== userId) {
+  if (role === USER_ROLES.PATIENT && patientId !== userId) {
     res.status(403).json({ error: 'Access denied' });
     return false;
   }

@@ -196,7 +196,7 @@ const ProviderManagement: React.FC = () => {
       <div className="card overflow-hidden">
         {loading ? (
           <div className="flex justify-center py-12"><LoadingSpinner /></div>
-        ) : !data || data.providers.length === 0 ? (
+        ) : !data || data.data.length === 0 ? (
           <div className="py-12 text-center text-gray-500">No providers found.</div>
         ) : (
           <>
@@ -213,7 +213,7 @@ const ProviderManagement: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {data.providers.map((p) => (
+                  {data.data.map((p) => (
                     <tr key={p.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-4 py-3 font-mono text-xs text-gray-700">{p.npi}</td>
                       <td className="px-4 py-3 font-medium text-gray-900">{p.name}</td>
@@ -248,9 +248,9 @@ const ProviderManagement: React.FC = () => {
                 </tbody>
               </table>
             </div>
-            {data.totalPages > 1 && (
+            {data.pagination?.totalPages > 1 && (
               <div className="px-4 py-3 border-t border-gray-200">
-                <Pagination page={data.page} totalPages={data.totalPages} onPageChange={setPage} />
+                <Pagination page={data.pagination?.page} totalPages={data.pagination?.totalPages} onPageChange={setPage} />
               </div>
             )}
           </>

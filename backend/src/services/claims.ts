@@ -1,4 +1,5 @@
 import prisma from '../lib/prisma';
+import { CLAIM_STATUSES } from '../constants/enums';
 
 interface PolicyForCalc {
   coverageAmount: number;
@@ -108,7 +109,7 @@ export async function getDeductiblePaid(
     where: {
       patientId,
       policyId,
-      status: { in: ['SUBMITTED', 'UNDER_REVIEW', 'INFO_REQUESTED', 'APPROVED', 'PARTIALLY_APPROVED', 'PAID'] },
+      status: { in: [CLAIM_STATUSES.SUBMITTED, CLAIM_STATUSES.UNDER_REVIEW, CLAIM_STATUSES.INFO_REQUESTED, CLAIM_STATUSES.APPROVED, CLAIM_STATUSES.PARTIALLY_APPROVED, CLAIM_STATUSES.PAID] },
       planYearStart: { gte: planYearStart },
       ...(excludeClaimId ? { NOT: { id: excludeClaimId } } : {}),
     },
@@ -134,8 +135,9 @@ export async function getOopPaid(
     where: {
       patientId,
       policyId,
-      status: { in: ['SUBMITTED', 'UNDER_REVIEW', 'INFO_REQUESTED', 'APPROVED', 'PARTIALLY_APPROVED', 'PAID'] },
+      status: { in: [CLAIM_STATUSES.SUBMITTED, CLAIM_STATUSES.UNDER_REVIEW, CLAIM_STATUSES.INFO_REQUESTED, CLAIM_STATUSES.APPROVED, CLAIM_STATUSES.PARTIALLY_APPROVED, CLAIM_STATUSES.PAID] },
       planYearStart: { gte: planYearStart },
+      deletedAt: null,
       ...(excludeClaimId ? { NOT: { id: excludeClaimId } } : {}),
     },
     select: { eligibleAmount: true, deductible: true, reimbursable: true },

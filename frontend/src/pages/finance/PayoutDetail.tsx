@@ -5,7 +5,7 @@ import { ArrowLeft, CreditCard, User, Stethoscope, AlertTriangle, X, GitMerge, D
 import toast from 'react-hot-toast'
 import { getPayoutDetail, payClaim } from '../../api/payouts'
 import { flagOverpayment } from '../../api/overpayments'
-import { enterExternalPrimaryEOB, initiateSecondaryClaim } from '../../api/claims'
+import { executeClaimAction } from '../../api/claims'
 import { getPatientUserPolicies } from '../../api/admin'
 import { Claim, Overpayment, OverpaymentReason, UserPolicy } from '../../types'
 import StatusBadge from '../../components/StatusBadge'
@@ -107,11 +107,11 @@ const PayoutDetail: React.FC = () => {
     if (isNaN(amount) || amount < 0) { toast.error('Enter a valid primary paid amount'); return }
     setCobSaving(true)
     try {
-      const updated = await enterExternalPrimaryEOB(claimId, {
+      const updated = await executeClaimAction(claimId, 'EXTERNAL_PRIMARY', {
         primaryInsurerName: extInsurerName,
         primaryPaidAmount: amount,
         primaryEOBDate: extEobDate,
-      })
+      }) as any
       setClaim(updated)
       toast.success('External primary EOB recorded')
       setCobModal(null)
@@ -130,7 +130,7 @@ const PayoutDetail: React.FC = () => {
     if (!claimId || !secondaryPolicyId) return
     setCobSaving(true)
     try {
-      await initiateSecondaryClaim(claimId, { secondaryPolicyId, notes: secondaryNotes || undefined })
+      await executeClaimAction(claimId, 'INITIATE_SECONDARY', { secondaryPolicyId, notes: secondaryNotes || undefined }) as any
       const updated = await getPayoutDetail(claimId)
       setClaim(updated)
       toast.success('Secondary COB claim created and submitted')

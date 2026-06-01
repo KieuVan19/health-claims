@@ -109,7 +109,7 @@ const UserPolicyManagement: React.FC = () => {
         getUsers({ role: 'PATIENT', limit: 200 }),
         getPolicies(),
       ])
-      setPatients(patientsRes.users)
+      setPatients(patientsRes.data)
       const now = new Date()
       setAllPolicies(policiesRes.filter((p) => p.isActive && new Date(p.expiryDate) >= now))
     } catch {

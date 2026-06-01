@@ -20,7 +20,7 @@ import {
   GitMerge,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { getClaim, approveClaim, rejectClaim, requestInfo, assignClaim, getClaimTypeSummary, assignAppeal, resolveAppeal, reassignClaim, adjudicateLine } from '../../api/claims'
+import { getClaim, getClaimTypeSummary, executeClaimAction } from '../../api/claims'
 import { downloadDocument, previewDocument } from '../../api/documents'
 import { getUsers } from '../../api/admin'
 import { useAuthStore } from '../../store/authStore'
@@ -72,7 +72,7 @@ const ClaimReview: React.FC = () => {
     fetchClaim()
     if (user?.role === 'ADMIN') {
       getUsers({ role: 'ADJUSTER', limit: 100 })
-        .then((res) => setAdjusters(res.users.filter((u) => u.isActive)))
+        .then((res) => setAdjusters(res.data.filter((u) => u.isActive)))
         .catch(() => null)
     }
   }, [id])
@@ -81,7 +81,7 @@ const ClaimReview: React.FC = () => {
     if (!claim || !reassignAdjusterId) return
     setActionLoading(true)
     try {
-      const updated = await reassignClaim(claim.id, reassignAdjusterId)
+      const updated = await executeClaimAction(claim.id, 'REASSIGN', { adjusterId: reassignAdjusterId }) as any
       setClaim(updated)
       setReassignAdjusterId('')
       toast.success('Claim reassigned successfully')
@@ -97,7 +97,7 @@ const ClaimReview: React.FC = () => {
     if (!claim || !user) return
     setActionLoading(true)
     try {
-      const updated = await assignClaim(claim.id, user.id)
+      const updated = await executeClaimAction(claim.id, 'ASSIGN', { adjusterId: user.id }) as any
       setClaim(updated)
       toast.success('Claim assigned to you')
     } catch (error: unknown) {
@@ -135,13 +135,14 @@ const ClaimReview: React.FC = () => {
     }
     setLineLoading(true)
     try {
-      const updated = await adjudicateLine(claim.id, line.id, {
+      const updated = await executeClaimAction(claim.id, 'ADJUDICATE_LINE', {
+        lineId: line.id,
         adjudicationStatus: action,
         ...(action === 'APPROVED' ? { allowedAmount: parseFloat(lineAllowedAmount) || line.billedAmount } : {}),
         ...(action === 'REDUCED' ? { allowedAmount: parseFloat(lineAllowedAmount) } : {}),
         ...(action === 'DENIED' ? { denialReason: lineDenialReason } : {}),
         ...(lineAdjNote.trim() ? { adjudicatorNote: lineAdjNote } : {}),
-      })
+      }) as any
       setClaim(updated)
       closeLineModal()
       toast.success(`Line ${line.lineNumber} ${action.toLowerCase()}`)
@@ -174,7 +175,7 @@ const ClaimReview: React.FC = () => {
 
     setActionLoading(true)
     try {
-      const updated = await approveClaim(claim.id, notes || undefined, parsedEligible)
+      const updated = await executeClaimAction(claim.id, 'APPROVE', { notes: notes || undefined, eligibleAmount: parsedEligible }) as any
       setClaim(updated)
       closeModal()
       toast.success('Claim approved!')
@@ -190,7 +191,7 @@ const ClaimReview: React.FC = () => {
     if (!claim) return
     setActionLoading(true)
     try {
-      const updated = await rejectClaim(claim.id, notes)
+      const updated = await executeClaimAction(claim.id, 'REJECT', { notes }) as any
       setClaim(updated)
       setModal(null)
       setNotes('')
@@ -207,7 +208,7 @@ const ClaimReview: React.FC = () => {
     if (!claim || !notes.trim()) return
     setActionLoading(true)
     try {
-      const updated = await requestInfo(claim.id, notes)
+      const updated = await executeClaimAction(claim.id, 'REQUEST_INFO', { message: notes }) as any
       setClaim(updated)
       setModal(null)
       setNotes('')
@@ -224,7 +225,7 @@ const ClaimReview: React.FC = () => {
     if (!claim || !user) return
     setActionLoading(true)
     try {
-      const updated = await assignAppeal(claim.id, user.id)
+      const updated = await executeClaimAction(claim.id, 'ASSIGN_APPEAL', { adjusterId: user.id }) as any
       setClaim(updated)
       toast.success('Appeal assigned to you')
     } catch (error: unknown) {
@@ -239,7 +240,7 @@ const ClaimReview: React.FC = () => {
     if (!claim) return
     setActionLoading(true)
     try {
-      const updated = await resolveAppeal(claim.id, resolution, notes || undefined)
+      const updated = await executeClaimAction(claim.id, 'RESOLVE_APPEAL', { resolution, notes: notes || undefined }) as any
       setClaim(updated)
       closeModal()
       toast.success(resolution === 'APPEAL_APPROVED' ? 'Appeal approved — claim returned to review' : 'Appeal denied')

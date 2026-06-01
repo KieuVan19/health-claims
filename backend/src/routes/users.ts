@@ -7,6 +7,7 @@ import { requireRole } from '../middleware/roles';
 import { validate } from '../middleware/validate';
 import { getDeductiblePaid, getOopPaid } from '../services/claims';
 import { passwordSchema, firstNameSchema, lastNameSchema } from '../schemas/common';
+import { USER_ROLES, CLAIM_STATUSES, PLAN_YEAR_TYPES } from '../constants/enums';
 
 const router = Router();
 
@@ -298,10 +299,10 @@ router.get(
       const [user, claims, notifications] = await Promise.all([
         prisma.user.findUnique({
           where: { id: userId },
-          select: { id: true, email: true, firstName: true, lastName: true, role: true, createdAt: true, userPolicies: { include: { policy: true } } },
+          select: { id: true, email: true, firstName: true, lastName: true, role: true, createdAt: true, userPolicies: { where: { deletedAt: null }, include: { policy: true } } },
         }),
         prisma.claim.findMany({
-          where: { patientId: userId },
+          where: { patientId: userId, deletedAt: null },
           include: { policy: true, events: true, documents: { select: { originalName: true, mimeType: true, size: true, createdAt: true } }, payout: true },
         }),
         prisma.notification.findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, take: 100 }),
@@ -360,7 +361,7 @@ router.get(
       const yearEnd = new Date(requestedYear + 1, 0, 1);
 
       const userPolicies = await prisma.userPolicy.findMany({
-        where: { userId },
+        where: { userId, deletedAt: null },
         include: {
           policy: true,
         },
@@ -368,13 +369,13 @@ router.get(
 
       const summaries = await Promise.all(
         userPolicies.map(async (up) => {
-          const planYearStart = up.planYearType === 'ANNIVERSARY'
+          const planYearStart = up.planYearType === PLAN_YEAR_TYPES.CALENDAR
             ? new Date(up.startDate)
             : yearStart;
 
           const [usedAgg, deductiblePaidIn, oopPaidIn, deductiblePaidOut, oopPaidOut] = await Promise.all([
             prisma.claim.aggregate({
-              where: { patientId: userId, policyId: up.policyId, status: { in: ['APPROVED', 'PAID'] }, createdAt: { gte: yearStart, lt: yearEnd } },
+              where: { patientId: userId, policyId: up.policyId, status: { in: [CLAIM_STATUSES.APPROVED, CLAIM_STATUSES.PAID] }, createdAt: { gte: yearStart, lt: yearEnd } },
               _sum: { totalAmount: true, reimbursable: true },
             }),
             getDeductiblePaid(userId, up.policyId, planYearStart, undefined, 'IN'),
@@ -436,13 +437,13 @@ router.get(
       const { patientId } = req.params;
 
       const user = await prisma.user.findUnique({ where: { id: patientId }, select: { id: true, role: true } });
-      if (!user || user.role !== 'PATIENT') {
+      if (!user || user.role !== USER_ROLES.PATIENT) {
         res.status(404).json({ error: 'Patient not found' });
         return;
       }
 
       const userPolicies = await prisma.userPolicy.findMany({
-        where: { userId: patientId },
+        where: { userId: patientId, deletedAt: null },
         include: { policy: true },
       });
 

@@ -1,8 +1,14 @@
 import { Router, Request, Response, NextFunction } from 'express';
+import { z } from 'zod';
 import prisma from '../lib/prisma';
 import { authenticate } from '../middleware/auth';
+import { validate } from '../middleware/validate';
 
 const router = Router();
+
+const bulkReadSchema = z.object({
+  notificationIds: z.array(z.string()).min(1, 'At least one notification ID is required'),
+});
 
 /**
  * @openapi
@@ -90,7 +96,55 @@ router.put(
 
 /**
  * @openapi
- * /notifications/{id}/read:
+ * /notifications/bulk-read:
+ *   patch:
+ *     tags: [Notifications]
+ *     summary: Mark multiple notifications as read
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [notificationIds]
+ *             properties:
+ *               notificationIds:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *     responses:
+ *       200:
+ *         description: Notifications marked as read
+ */
+router.patch(
+  '/bulk-read',
+  authenticate,
+  validate(bulkReadSchema),
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { notificationIds } = req.body as z.infer<typeof bulkReadSchema>;
+
+      const result = await prisma.notification.updateMany({
+        where: {
+          id: { in: notificationIds },
+          userId: req.user!.id,
+          isRead: false,
+        },
+        data: { isRead: true },
+      });
+
+      res.json({ updated: result.count });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+/**
+ * @openapi
+ * /notifications/{notificationId}/read:
  *   put:
  *     tags: [Notifications]
  *     summary: Mark a notification as read
@@ -98,7 +152,7 @@ router.put(
  *       - bearerAuth: []
  *     parameters:
  *       - in: path
- *         name: id
+ *         name: notificationId
  *         required: true
  *         schema:
  *           type: string
@@ -107,12 +161,12 @@ router.put(
  *         description: Notification marked as read
  */
 router.put(
-  '/:id/read',
+  '/:notificationId/read',
   authenticate,
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const notification = await prisma.notification.findUnique({
-        where: { id: req.params['id'] },
+        where: { id: req.params['notificationId'] },
       });
 
       if (!notification) {
@@ -138,3 +192,4 @@ router.put(
 );
 
 export default router;
+

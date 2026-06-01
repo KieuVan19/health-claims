@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { ArrowLeft, Save, Send, Plus, X as XIcon } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { getClaim, updateClaim, submitClaim } from '../../api/claims'
+import { getClaim, updateClaim, executeClaimAction } from '../../api/claims'
 import { Claim, ClaimType } from '../../types'
 import ICD10Input from '../../components/ICD10Input'
 import LoadingSpinner from '../../components/LoadingSpinner'
@@ -143,7 +143,7 @@ const EditClaim: React.FC = () => {
         totalAmount: Number(form.totalAmount),
         diagnosisCodes: getValidDiagnosisCodes(),
       })
-      await submitClaim(id)
+      await executeClaimAction(id, 'SUBMIT', {}) as any
       toast.success('Claim submitted successfully!')
       navigate(`/patient/claims/${id}`)
     } catch (error: unknown) {

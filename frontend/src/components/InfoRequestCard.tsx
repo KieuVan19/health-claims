@@ -3,7 +3,7 @@ import { format } from 'date-fns'
 import { HelpCircle, CheckCircle, Send } from 'lucide-react'
 import { InfoRequest } from '../types'
 import { useAuthStore } from '../store/authStore'
-import { respondInfo } from '../api/claims'
+import { executeClaimAction } from '../api/claims'
 import { uploadDocuments } from '../api/documents'
 import FileUpload from './FileUpload'
 import toast from 'react-hot-toast'
@@ -28,7 +28,7 @@ const InfoRequestCard: React.FC<InfoRequestCardProps> = ({ infoRequest, claimId,
       if (attachedFiles.length > 0) {
         await uploadDocuments(claimId, attachedFiles)
       }
-      await respondInfo(claimId, infoRequest.id, response.trim())
+      await executeClaimAction(claimId, 'RESPOND_INFO', { infoRequestId: infoRequest.id, response: response.trim() })
       toast.success('Response submitted successfully')
       onResponded?.()
     } catch {

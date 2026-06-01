@@ -19,7 +19,7 @@ import {
   X as XIcon,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { createClaim, submitClaim, deleteClaim } from '../../api/claims'
+import { createClaim, executeClaimAction, deleteClaim } from '../../api/claims'
 import { uploadDocuments } from '../../api/documents'
 import { getPolicies } from '../../api/policies'
 import { getCoverageSummary } from '../../api/users'
@@ -161,7 +161,7 @@ const NewClaim: React.FC = () => {
     }
     setProviderLoading(true)
     getProviders({ search: watchProviderName, limit: 10 })
-      .then((res) => setProviders(res.providers))
+      .then((res) => setProviders(res.data))
       .catch(() => setProviders([]))
       .finally(() => setProviderLoading(false))
   }, [watchProviderName])
@@ -385,7 +385,7 @@ const NewClaim: React.FC = () => {
       if (files.length > 0) {
         await uploadDocuments(claimId, files)
       }
-      await submitClaim(claimId)
+      await executeClaimAction(claimId, 'SUBMIT', {}) as any
       toast.success('Claim submitted successfully!')
       navigate(`/patient/claims/${claimId}`)
     } catch (error: unknown) {

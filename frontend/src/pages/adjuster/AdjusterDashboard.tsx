@@ -10,7 +10,7 @@ import {
   UserCheck,
   Scale,
 } from 'lucide-react'
-import { getClaims, assignClaim, assignAppeal } from '../../api/claims'
+import { getClaims, executeClaimAction } from '../../api/claims'
 import { useAuthStore } from '../../store/authStore'
 import { Claim } from '../../types'
 import StatCard from '../../components/StatCard'
@@ -34,8 +34,8 @@ const AdjusterDashboard: React.FC = () => {
         getClaims({ limit: 20 }),
         getClaims({ limit: 20, unassigned: true }),
       ])
-      setMyClaims(myRes.claims ?? [])
-      setUnassignedClaims(unassignedRes.claims ?? [])
+      setMyClaims(myRes.data ?? [])
+      setUnassignedClaims(unassignedRes.data ?? [])
     } catch {
       setMyClaims([])
       setUnassignedClaims([])
@@ -65,9 +65,9 @@ const AdjusterDashboard: React.FC = () => {
     setAssigningId(claimId)
     try {
       if (status === 'APPEAL_PENDING') {
-        await assignAppeal(claimId, user.id)
+        await executeClaimAction(claimId, 'ASSIGN_APPEAL', { adjusterId: user.id }) as any
       } else {
-        await assignClaim(claimId, user.id)
+        await executeClaimAction(claimId, 'ASSIGN', { adjusterId: user.id }) as any
       }
       toast.success('Claim assigned to you')
       fetchClaims()
