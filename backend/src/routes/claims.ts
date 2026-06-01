@@ -6,6 +6,7 @@ import PDFDocument from 'pdfkit';
 import prisma from '../lib/prisma';
 import { authenticate } from '../middleware/auth';
 import { requireRole } from '../middleware/roles';
+import { requireOwnership } from '../middleware/ownership';
 import { validate } from '../middleware/validate';
 import { createAuditLog, logRead } from '../utils/audit';
 import { createNotification } from '../utils/notification';
@@ -968,16 +969,12 @@ router.put(
   '/:id',
   authenticate,
   requireRole('PATIENT'),
+  requireOwnership('claim'),
   validate(updateClaimSchema),
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const claim = await prisma.claim.findUnique({
-        where: { id: req.params['id'] },
-        include: { policy: true },
-      });
+      const claim = req.resource;
 
-      if (!claim) { res.status(404).json({ error: 'Claim not found' }); return; }
-      if (claim.patientId !== req.user!.id) { res.status(403).json({ error: 'Access denied' }); return; }
       if (claim.status !== 'DRAFT') { res.status(400).json({ error: 'Only DRAFT claims can be updated' }); return; }
 
       const data = req.body as z.infer<typeof updateClaimSchema>;
@@ -1068,11 +1065,10 @@ router.delete(
   '/:id',
   authenticate,
   requireRole('PATIENT'),
+  requireOwnership('claim'),
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const claim = await prisma.claim.findUnique({ where: { id: req.params['id'] } });
-      if (!claim) { res.status(404).json({ error: 'Claim not found' }); return; }
-      if (claim.patientId !== req.user!.id) { res.status(403).json({ error: 'Access denied' }); return; }
+      const claim = req.resource;
       if (claim.status !== 'DRAFT') { res.status(400).json({ error: 'Only DRAFT claims can be deleted' }); return; }
 
       await prisma.claim.delete({ where: { id: claim.id } });

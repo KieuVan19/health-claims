@@ -4,6 +4,7 @@ import path from 'path';
 import prisma from '../lib/prisma';
 import { authenticate } from '../middleware/auth';
 import { requireRole } from '../middleware/roles';
+import { requireOwnership } from '../middleware/ownership';
 import { uploadDocuments } from '../middleware/upload';
 import { logRead } from '../utils/audit';
 
@@ -42,6 +43,7 @@ router.post(
   '/claims/:claimId/upload',
   authenticate,
   requireRole('PATIENT'),
+  requireOwnership('claim'),
   (req: Request, res: Response, next: NextFunction): void => {
     uploadDocuments(req, res, (err) => {
       if (err) {
@@ -54,17 +56,6 @@ router.post(
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { claimId } = req.params;
-
-      const claim = await prisma.claim.findUnique({ where: { id: claimId } });
-      if (!claim) {
-        res.status(404).json({ error: 'Claim not found' });
-        return;
-      }
-
-      if (claim.patientId !== req.user!.id) {
-        res.status(403).json({ error: 'Access denied' });
-        return;
-      }
 
       const files = req.files as Express.Multer.File[];
       if (!files || files.length === 0) {
@@ -167,23 +158,10 @@ router.get(
 router.get(
   '/:id/download',
   authenticate,
+  requireOwnership('document'),
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const document = await prisma.document.findUnique({
-        where: { id: req.params['id'] },
-        include: { claim: true },
-      });
-
-      if (!document) {
-        res.status(404).json({ error: 'Document not found' });
-        return;
-      }
-
-      // Patients can only download their own documents
-      if (req.user!.role === 'PATIENT' && document.claim.patientId !== req.user!.id) {
-        res.status(403).json({ error: 'Access denied' });
-        return;
-      }
+      const document = req.resource;
 
       const isOwn = req.user!.role === 'PATIENT' && document.claim.patientId === req.user!.id;
       logRead(req.user!.id, 'Document', document.id, req, isOwn);

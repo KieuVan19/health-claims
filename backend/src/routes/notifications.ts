@@ -1,6 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import prisma from '../lib/prisma';
 import { authenticate } from '../middleware/auth';
+import { requireOwnership } from '../middleware/ownership';
 
 const router = Router();
 
@@ -109,21 +110,10 @@ router.put(
 router.put(
   '/:id/read',
   authenticate,
+  requireOwnership('notification'),
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const notification = await prisma.notification.findUnique({
-        where: { id: req.params['id'] },
-      });
-
-      if (!notification) {
-        res.status(404).json({ error: 'Notification not found' });
-        return;
-      }
-
-      if (notification.userId !== req.user!.id) {
-        res.status(403).json({ error: 'Access denied' });
-        return;
-      }
+      const notification = req.resource;
 
       const updated = await prisma.notification.update({
         where: { id: notification.id },
