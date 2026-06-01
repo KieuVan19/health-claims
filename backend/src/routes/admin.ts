@@ -6,6 +6,7 @@ import { authenticate } from '../middleware/auth';
 import { requireRole } from '../middleware/roles';
 import { validate } from '../middleware/validate';
 import { createAuditLog, logRead } from '../utils/audit';
+import { paginatedResponse } from '../utils/response';
 import { USER_ROLES } from '../constants/enums';
 
 const router = Router();
@@ -113,12 +114,7 @@ router.get(
         }),
       ]);
 
-      res.json({
-        users,
-        total,
-        page: pageNum,
-        totalPages: Math.ceil(total / limitNum),
-      });
+      res.json(paginatedResponse(users, total, pageNum, limitNum));
     } catch (err) {
       next(err);
     }

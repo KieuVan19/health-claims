@@ -9,6 +9,7 @@ import { createAuditLog } from '../utils/audit';
 import { createNotification } from '../utils/notification';
 import { sendClaimPaid } from '../services/email';
 import { applyRecoupment, markOffsets } from '../services/overpayments';
+import { paginatedResponse } from '../utils/response';
 import { CLAIM_STATUSES } from '../constants/enums';
 
 const router = Router();
@@ -124,15 +125,7 @@ router.get(
         }),
       ]);
 
-      res.json({
-        data: claims,
-        pagination: {
-          total,
-          page: pageNum,
-          limit: limitNum,
-          totalPages: Math.ceil(total / limitNum),
-        },
-      });
+      res.json(paginatedResponse(claims, total, pageNum, limitNum));
     } catch (err) {
       next(err);
     }

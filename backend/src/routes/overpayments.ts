@@ -6,6 +6,7 @@ import { requireRole } from '../middleware/roles';
 import { validate } from '../middleware/validate';
 import { createAuditLog } from '../utils/audit';
 import { createNotification } from '../utils/notification';
+import { paginatedResponse } from '../utils/response';
 import { OVERPAYMENT_REASONS, OVERPAYMENT_STATUSES } from '../constants/enums';
 
 const router = Router();
@@ -86,15 +87,7 @@ router.get(
         }),
       ]);
 
-      res.json({
-        data: overpayments,
-        pagination: {
-          total,
-          page: pageNum,
-          limit: limitNum,
-          totalPages: Math.ceil(total / limitNum),
-        },
-      });
+      res.json(paginatedResponse(overpayments, total, pageNum, limitNum));
     } catch (err) {
       next(err);
     }
