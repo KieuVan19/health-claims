@@ -5,6 +5,7 @@ import { authenticate } from '../middleware/auth';
 import { requireRole } from '../middleware/roles';
 import { validate } from '../middleware/validate';
 import { createAuditLog } from '../utils/audit';
+import { USER_ROLES, PLAN_YEAR_TYPES } from '../constants/enums';
 
 const router = Router();
 
@@ -64,9 +65,9 @@ router.get(
     try {
       const { role, id: userId } = req.user!;
 
-      if (role === 'PATIENT') {
+      if (role === USER_ROLES.PATIENT) {
         const userPolicies = await prisma.userPolicy.findMany({
-          where: { userId },
+          where: { userId, deletedAt: null },
           include: { policy: true },
         });
         res.json(userPolicies.map((up) => parseBenefits(up.policy)));
@@ -94,7 +95,7 @@ router.get(
  *       - bearerAuth: []
  *     parameters:
  *       - in: path
- *         name: id
+ *         name: policyId
  *         required: true
  *         schema:
  *           type: string
@@ -105,12 +106,12 @@ router.get(
  *         description: Policy not found
  */
 router.get(
-  '/:id',
+  '/:policyId',
   authenticate,
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const policy = await prisma.policy.findUnique({
-        where: { id: req.params['id'] },
+        where: { id: req.params['policyId'] },
         include: {
           userPolicies: {
             include: {
@@ -128,7 +129,7 @@ router.get(
       }
 
       // Patients may only view their own policies
-      if (req.user!.role === 'PATIENT') {
+      if (req.user!.role === USER_ROLES.PATIENT) {
         const owned = policy.userPolicies.some((up) => up.userId === req.user!.id);
         if (!owned) {
           res.status(403).json({ error: 'Access denied' });
@@ -218,7 +219,7 @@ router.post(
  *       - bearerAuth: []
  *     parameters:
  *       - in: path
- *         name: id
+ *         name: policyId
  *         required: true
  *         schema:
  *           type: string
@@ -227,7 +228,7 @@ router.post(
  *         description: Policy updated
  */
 router.put(
-  '/:id',
+  '/:policyId',
   authenticate,
   requireRole('ADMIN'),
   validate(updatePolicySchema),
@@ -236,7 +237,7 @@ router.put(
       const data = req.body as z.infer<typeof updatePolicySchema>;
 
       const policy = await prisma.policy.update({
-        where: { id: req.params['id'] },
+        where: { id: req.params['policyId'] },
         data: {
           ...(data.name !== undefined && { name: data.name }),
           ...(data.type !== undefined && { type: data.type }),
@@ -274,7 +275,7 @@ router.put(
  *       - bearerAuth: []
  *     parameters:
  *       - in: path
- *         name: id
+ *         name: policyId
  *         required: true
  *         schema:
  *           type: string
@@ -283,16 +284,16 @@ router.put(
  *         description: Policy deactivated
  */
 router.delete(
-  '/:id',
+  '/:policyId',
   authenticate,
   requireRole('ADMIN'),
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const policyId = req.params['id']!;
+      const policyId = req.params['policyId']!;
 
       const [claimCount, userPolicyCount] = await Promise.all([
-        prisma.claim.count({ where: { policyId } }),
-        prisma.userPolicy.count({ where: { policyId } }),
+        prisma.claim.count({ where: { policyId, deletedAt: null } }),
+        prisma.userPolicy.count({ where: { policyId, deletedAt: null } }),
       ]);
 
       if (claimCount > 0) {
@@ -324,7 +325,7 @@ router.delete(
  *       - bearerAuth: []
  *     parameters:
  *       - in: path
- *         name: id
+ *         name: policyId
  *         required: true
  *         schema:
  *           type: string
@@ -338,19 +339,19 @@ router.delete(
  *         description: Policy assigned
  */
 const assignPolicyBodySchema = z.object({
-  planYearType: z.enum(['CALENDAR', 'ANNIVERSARY']).default('CALENDAR'),
+  planYearType: z.enum([PLAN_YEAR_TYPES.CALENDAR, 'ANNIVERSARY'] as const).default(PLAN_YEAR_TYPES.CALENDAR),
 }).partial();
 
 router.post(
-  '/:id/assign/:userId',
+  '/:policyId/assign/:userId',
   authenticate,
   requireRole('ADMIN'),
   validate(assignPolicyBodySchema),
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const policyId = req.params['id']!;
+      const policyId = req.params['policyId']!;
       const targetUserId = req.params['userId']!;
-      const { planYearType = 'CALENDAR' } = req.body as z.infer<typeof assignPolicyBodySchema>;
+      const { planYearType = PLAN_YEAR_TYPES.CALENDAR } = req.body as z.infer<typeof assignPolicyBodySchema>;
 
       const [policy, user] = await Promise.all([
         prisma.policy.findUnique({ where: { id: policyId } }),
@@ -367,7 +368,7 @@ router.post(
       }
 
       const userPolicy = await prisma.userPolicy.create({
-        data: { userId: targetUserId, policyId, startDate: new Date(), planYearType: planYearType ?? 'CALENDAR' },
+        data: { userId: targetUserId, policyId, startDate: new Date(), planYearType: planYearType ?? PLAN_YEAR_TYPES.CALENDAR },
         include: { policy: true, user: { select: { id: true, email: true, firstName: true, lastName: true } } },
       });
 
@@ -381,3 +382,4 @@ router.post(
 );
 
 export default router;
+

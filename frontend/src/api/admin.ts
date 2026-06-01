@@ -33,10 +33,13 @@ export interface AuditLog {
 }
 
 export interface AdminUsersResponse {
-  users: User[]
-  total: number
-  page: number
-  totalPages: number
+  data: User[]
+  pagination: {
+    total: number
+    page: number
+    limit: number
+    totalPages: number
+  }
 }
 
 export interface AuditLogsResponse {

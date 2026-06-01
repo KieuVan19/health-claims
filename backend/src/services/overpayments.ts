@@ -12,6 +12,7 @@ export async function getPendingRecoupment(patientId: string): Promise<number> {
     where: {
       status: 'IDENTIFIED',
       claim: { patientId },
+      deletedAt: null,
     },
     select: { overpaidAmount: true },
   });
@@ -38,6 +39,7 @@ export async function applyRecoupment(
     where: {
       status: 'IDENTIFIED',
       claim: { patientId },
+      deletedAt: null,
     },
     orderBy: { createdAt: 'asc' },
     select: { id: true, overpaidAmount: true },

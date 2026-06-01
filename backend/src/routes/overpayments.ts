@@ -6,7 +6,8 @@ import { requireRole } from '../middleware/roles';
 import { validate } from '../middleware/validate';
 import { createAuditLog } from '../utils/audit';
 import { createNotification } from '../utils/notification';
-import { getPaginationParams } from '../utils/pagination';
+import { getPaginationParams, createPaginatedResponse } from '../utils/pagination';
+import { OVERPAYMENT_REASONS, OVERPAYMENT_STATUSES, CLAIM_STATUSES } from '../constants/enums';
 
 const router = Router();
 
@@ -16,10 +17,15 @@ router.use(authenticate, requireRole('FINANCE_OFFICER', 'ADMIN'));
 
 const createOverpaymentSchema = z.object({
   overpaidAmount: z.number().positive('Overpaid amount must be positive'),
-  reason: z.enum(['ADJUSTER_ERROR', 'COB_UPDATE', 'POLICY_CHANGE']),
+  reason: z.enum([OVERPAYMENT_REASONS.ADJUSTER_ERROR, OVERPAYMENT_REASONS.COB_UPDATE, OVERPAYMENT_REASONS.POLICY_CHANGE] as const),
 });
 
 const waiveOverpaymentSchema = z.object({
+  waiverReason: z.string().min(1, 'Waiver reason is required'),
+});
+
+const bulkWaiveSchema = z.object({
+  overpaymentIds: z.array(z.string()).min(1, 'At least one overpayment ID is required'),
   waiverReason: z.string().min(1, 'Waiver reason is required'),
 });
 
@@ -59,8 +65,8 @@ router.get(
 
       const { pageNum, limitNum, skip } = getPaginationParams(page, limit);
 
-      const validStatuses = ['IDENTIFIED', 'OFFSET', 'WAIVED'];
-      const where = status && validStatuses.includes(status) ? { status } : {};
+      const validStatuses = [OVERPAYMENT_STATUSES.IDENTIFIED, OVERPAYMENT_STATUSES.OFFSET, OVERPAYMENT_STATUSES.WAIVED] as const;
+      const where = status && validStatuses.includes(status as unknown as typeof validStatuses[number]) ? { status, deletedAt: null } : { deletedAt: null };
 
       const [total, overpayments] = await Promise.all([
         prisma.overpayment.count({ where }),
@@ -85,15 +91,7 @@ router.get(
         }),
       ]);
 
-      res.json({
-        data: overpayments,
-        pagination: {
-          total,
-          page: pageNum,
-          limit: limitNum,
-          totalPages: Math.ceil(total / limitNum),
-        },
-      });
+      res.json(createPaginatedResponse(overpayments, total, pageNum, limitNum));
     } catch (err) {
       next(err);
     }
@@ -149,7 +147,7 @@ router.post(
         return;
       }
 
-      if (claim.status !== 'PAID') {
+      if (claim.status !== CLAIM_STATUSES.PAID) {
         res.status(400).json({ error: 'Only PAID claims can be flagged as overpaid' });
         return;
       }
@@ -173,7 +171,7 @@ router.post(
           originalPayoutId: claim.payout.id,
           overpaidAmount,
           reason,
-          status: 'IDENTIFIED',
+          status: OVERPAYMENT_STATUSES.IDENTIFIED,
         },
         include: {
           claim: {
@@ -204,7 +202,7 @@ router.post(
 
 /**
  * @openapi
- * /overpayments/{id}/waive:
+ * /overpayments/{overpaymentId}/waive:
  *   post:
  *     tags: [Overpayments]
  *     summary: Waive an identified overpayment
@@ -212,7 +210,7 @@ router.post(
  *       - bearerAuth: []
  *     parameters:
  *       - in: path
- *         name: id
+ *         name: overpaymentId
  *         required: true
  *         schema:
  *           type: string
@@ -230,12 +228,107 @@ router.post(
  *       200:
  *         description: Overpayment waived
  */
+/**
+ * @openapi
+ * /overpayments/bulk-waive:
+ *   post:
+ *     tags: [Overpayments]
+ *     summary: Bulk waive multiple identified overpayments
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [overpaymentIds, waiverReason]
+ *             properties:
+ *               overpaymentIds:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *               waiverReason:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Bulk waive processed
+ */
 router.post(
-  '/:id/waive',
+  '/bulk-waive',
+  validate(bulkWaiveSchema),
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { overpaymentIds, waiverReason } = req.body as z.infer<typeof bulkWaiveSchema>;
+
+      const overpayments = await prisma.overpayment.findMany({
+        where: {
+          id: { in: overpaymentIds },
+          status: OVERPAYMENT_STATUSES.IDENTIFIED,
+          deletedAt: null,
+        },
+        include: {
+          claim: { select: { patientId: true, claimNumber: true } },
+        },
+      });
+
+      if (overpayments.length === 0) {
+        res.status(400).json({ error: 'No IDENTIFIED overpayments found for the provided IDs' });
+        return;
+      }
+
+      const processed: { overpaymentId: string; claimNumber: string; overpaidAmount: number }[] = [];
+      const errors: { overpaymentId: string; error: string }[] = [];
+
+      for (const overpayment of overpayments) {
+        try {
+          const updated = await prisma.overpayment.update({
+            where: { id: overpayment.id },
+            data: { status: OVERPAYMENT_STATUSES.WAIVED, waiverReason },
+          });
+
+          await createNotification({
+            userId: overpayment.claim.patientId,
+            title: 'Overpayment Waived',
+            message: `The overpayment of $${overpayment.overpaidAmount.toFixed(2)} on claim ${overpayment.claim.claimNumber} has been waived.`,
+            type: 'info',
+            link: `/claims/${overpayment.claimId}`,
+          });
+
+          processed.push({
+            overpaymentId: updated.id,
+            claimNumber: overpayment.claim.claimNumber,
+            overpaidAmount: overpayment.overpaidAmount,
+          });
+        } catch (err) {
+          errors.push({
+            overpaymentId: overpayment.id,
+            error: err instanceof Error ? err.message : 'Failed to waive overpayment',
+          });
+        }
+      }
+
+      await createAuditLog({
+        userId: req.user!.id,
+        action: 'BULK_WAIVE_OVERPAYMENT',
+        resource: 'Overpayment',
+        details: { count: processed.length, overpaymentIds },
+        ipAddress: req.ip,
+      });
+
+      res.json({ processed, errors });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+router.post(
+  '/:overpaymentId/waive',
   validate(waiveOverpaymentSchema),
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { id } = req.params;
+      const { overpaymentId: id } = req.params;
       const { waiverReason } = req.body as z.infer<typeof waiveOverpaymentSchema>;
 
       const overpayment = await prisma.overpayment.findUnique({
@@ -256,14 +349,14 @@ router.post(
       }
 
       // Immutability guard: cannot waive once already offset or waived
-      if (overpayment.status !== 'IDENTIFIED') {
+      if (overpayment.status !== OVERPAYMENT_STATUSES.IDENTIFIED) {
         res.status(400).json({ error: `Cannot waive an overpayment in status ${overpayment.status}` });
         return;
       }
 
       const updated = await prisma.overpayment.update({
         where: { id },
-        data: { status: 'WAIVED', waiverReason },
+        data: { status: OVERPAYMENT_STATUSES.WAIVED, waiverReason },
       });
 
       await createAuditLog({
@@ -292,7 +385,7 @@ router.post(
 
 /**
  * @openapi
- * /overpayments/{id}:
+ * /overpayments/{overpaymentId}:
  *   get:
  *     tags: [Overpayments]
  *     summary: Get a single overpayment record
@@ -300,7 +393,7 @@ router.post(
  *       - bearerAuth: []
  *     parameters:
  *       - in: path
- *         name: id
+ *         name: overpaymentId
  *         required: true
  *         schema:
  *           type: string
@@ -309,10 +402,10 @@ router.post(
  *         description: Overpayment detail
  */
 router.get(
-  '/:id',
+  '/:overpaymentId',
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { id } = req.params;
+      const { overpaymentId: id } = req.params;
 
       const overpayment = await prisma.overpayment.findUnique({
         where: { id },
@@ -344,3 +437,4 @@ router.get(
 );
 
 export default router;
+

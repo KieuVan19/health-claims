@@ -143,9 +143,9 @@ const UserManagement: React.FC = () => {
         search: search || undefined,
         role: roleFilter || undefined,
       })
-      setUsers(res.users ?? [])
-      setTotal(res.total ?? 0)
-      setTotalPages(res.totalPages ?? 1)
+      setUsers(res.data ?? [])
+      setTotal(res.pagination?.total ?? 0)
+      setTotalPages(res.pagination?.totalPages ?? 1)
     } catch {
       setUsers([])
     } finally {

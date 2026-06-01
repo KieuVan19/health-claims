@@ -36,7 +36,7 @@ const PatientDashboard: React.FC = () => {
           getClaims({ limit: 10 }),
           getPolicies(),
         ])
-        setClaims(claimsRes.claims ?? [])
+        setClaims(claimsRes.data ?? [])
         setPolicies(policiesRes ?? [])
       } catch {
         // ignore

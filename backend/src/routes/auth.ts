@@ -9,6 +9,7 @@ import { authenticate } from '../middleware/auth';
 import { createAuditLog } from '../utils/audit';
 import { sendPasswordReset } from '../services/email';
 import { passwordSchema, firstNameSchema, lastNameSchema } from '../schemas/common';
+import { USER_ROLES } from '../constants/enums';
 
 const router = Router();
 
@@ -75,7 +76,7 @@ router.post(
 
       const hashedPassword = await bcrypt.hash(password, 10);
       const user = await prisma.user.create({
-        data: { email, password: hashedPassword, firstName, lastName, role: 'PATIENT' },
+        data: { email, password: hashedPassword, firstName, lastName, role: USER_ROLES.PATIENT },
         select: { id: true, email: true, firstName: true, lastName: true, role: true, isActive: true, createdAt: true },
       });
 

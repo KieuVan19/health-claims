@@ -3,6 +3,8 @@ import prisma from '../lib/prisma';
 import { authenticate } from '../middleware/auth';
 import { requireRole } from '../middleware/roles';
 import { config } from '../config';
+import { getPaginationParams, createPaginatedResponse } from '../utils/pagination';
+import { CLAIM_STATUSES } from '../constants/enums';
 
 const router = Router();
 
@@ -72,12 +74,12 @@ router.get(
         limit = '20',
       } = req.query as Record<string, string>;
 
-      const pageNum = Math.max(1, parseInt(page, 10));
-      const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10)));
+      const { pageNum, limitNum } = getPaginationParams(page, limit);
 
       // Only claims that are still open (in-flight)
       const where: Record<string, unknown> = {
-        status: { in: ['SUBMITTED', 'UNDER_REVIEW', 'INFO_REQUESTED', 'INFO_RESPONDED'] },
+        status: { in: [CLAIM_STATUSES.SUBMITTED, CLAIM_STATUSES.UNDER_REVIEW, CLAIM_STATUSES.INFO_REQUESTED, CLAIM_STATUSES.INFO_RESPONDED] },
+        deletedAt: null,
       };
 
       if (adjusterId) where['adjusterId'] = adjusterId;
@@ -100,7 +102,7 @@ router.get(
           patient: { select: { id: true, firstName: true, lastName: true, email: true } },
           adjuster: { select: { id: true, firstName: true, lastName: true, email: true } },
           events: {
-            where: { toStatus: 'SUBMITTED' },
+            where: { toStatus: CLAIM_STATUSES.SUBMITTED },
             orderBy: { createdAt: 'asc' },
             take: 1,
           },
@@ -147,11 +149,9 @@ router.get(
         total: rows.length,
       };
 
+      const paginated_response = createPaginatedResponse(paginated, total, pageNum, limitNum);
       res.json({
-        items: paginated,
-        total,
-        page: pageNum,
-        totalPages: Math.ceil(total / limitNum),
+        ...paginated_response,
         summary,
         thresholds: {
           adjudicationDays: config.sla.adjudicationDays,

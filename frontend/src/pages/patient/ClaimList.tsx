@@ -56,9 +56,9 @@ const ClaimList: React.FC = () => {
         dateFrom: dateFrom || undefined,
         dateTo: dateTo || undefined,
       })
-      setClaims(res.claims ?? [])
-      setTotal(res.total ?? 0)
-      setTotalPages(res.totalPages ?? 1)
+      setClaims(res.data ?? [])
+      setTotal(res.pagination?.total ?? 0)
+      setTotalPages(res.pagination?.totalPages ?? 1)
     } catch {
       setClaims([])
     } finally {

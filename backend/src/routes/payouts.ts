@@ -9,7 +9,8 @@ import { createAuditLog } from '../utils/audit';
 import { createNotification } from '../utils/notification';
 import { sendClaimPaid } from '../services/email';
 import { applyRecoupment, markOffsets } from '../services/overpayments';
-import { getPaginationParams } from '../utils/pagination';
+import { getPaginationParams, createPaginatedResponse } from '../utils/pagination';
+import { CLAIM_STATUSES } from '../constants/enums';
 
 const router = Router();
 
@@ -72,10 +73,10 @@ router.get(
 
       const { pageNum, limitNum, skip } = getPaginationParams(page, limit);
 
-      const allowedStatuses = ['APPROVED', 'PARTIALLY_APPROVED', 'PAID'];
-      const queryStatus = allowedStatuses.includes(status) ? status : 'APPROVED';
+      const allowedStatuses = [CLAIM_STATUSES.APPROVED, CLAIM_STATUSES.PARTIALLY_APPROVED, CLAIM_STATUSES.PAID] as const;
+      const queryStatus = allowedStatuses.includes(status as unknown as typeof allowedStatuses[number]) ? status : CLAIM_STATUSES.APPROVED;
 
-      const where: Record<string, unknown> = { status: queryStatus };
+      const where: Record<string, unknown> = { status: queryStatus, deletedAt: null };
 
       if (search) {
         where['OR'] = [
@@ -95,7 +96,7 @@ router.get(
           toDate.setHours(23, 59, 59, 999);
           dateFilter['lte'] = toDate;
         }
-        if (queryStatus === 'PAID') {
+        if (queryStatus === CLAIM_STATUSES.PAID) {
           where['payout'] = { paidAt: dateFilter };
         } else {
           where['updatedAt'] = dateFilter;
@@ -122,15 +123,7 @@ router.get(
         }),
       ]);
 
-      res.json({
-        data: claims,
-        pagination: {
-          total,
-          page: pageNum,
-          limit: limitNum,
-          totalPages: Math.ceil(total / limitNum),
-        },
-      });
+      res.json(createPaginatedResponse(claims, total, pageNum, limitNum));
     } catch (err) {
       next(err);
     }
@@ -185,7 +178,7 @@ router.post(
         return;
       }
 
-      if (claim.status !== 'APPROVED') {
+      if (claim.status !== CLAIM_STATUSES.APPROVED) {
         res.status(400).json({ error: 'Only APPROVED claims can be paid' });
         return;
       }
@@ -204,10 +197,10 @@ router.post(
         grossAmount,
       );
 
-      const [updatedClaim, payout] = await Promise.all([
+      const [updatedClaim, payout] = await prisma.$transaction([
         prisma.claim.update({
           where: { id: claimId },
-          data: { status: 'PAID' },
+          data: { status: CLAIM_STATUSES.PAID },
           include: {
             patient: { select: { id: true, email: true, firstName: true, lastName: true } },
             policy: true,
@@ -228,8 +221,8 @@ router.post(
             claimId,
             userId: req.user!.id,
             action: 'PAID',
-            fromStatus: 'APPROVED',
-            toStatus: 'PAID',
+            fromStatus: CLAIM_STATUSES.APPROVED,
+            toStatus: CLAIM_STATUSES.PAID,
             note: `Payment reference: ${paymentRef}`,
           },
         }),
@@ -305,7 +298,8 @@ router.post(
       const claims = await prisma.claim.findMany({
         where: {
           id: { in: claimIds },
-          status: 'APPROVED',
+          status: CLAIM_STATUSES.APPROVED,
+          deletedAt: null,
         },
         include: { patient: true },
       });
@@ -340,10 +334,10 @@ router.post(
             grossAmount,
           );
 
-          await Promise.all([
+          await prisma.$transaction([
             prisma.claim.update({
               where: { id: claim.id },
-              data: { status: 'PAID' },
+              data: { status: CLAIM_STATUSES.PAID },
             }),
             prisma.payout.create({
               data: {
@@ -360,8 +354,8 @@ router.post(
                 claimId: claim.id,
                 userId: req.user!.id,
                 action: 'PAID',
-                fromStatus: 'APPROVED',
-                toStatus: 'PAID',
+                fromStatus: CLAIM_STATUSES.APPROVED,
+                toStatus: CLAIM_STATUSES.PAID,
                 note: isBatch ? `Batch payment: ${paymentRef}` : `Payment reference: ${paymentRef}`,
               },
             }),
@@ -439,7 +433,7 @@ router.get(
     try {
       const { from, to } = req.query as Record<string, string>;
 
-      const where: Record<string, unknown> = { status: 'PAID' };
+      const where: Record<string, unknown> = { status: CLAIM_STATUSES.PAID, deletedAt: null };
       if (from || to) {
         const dateFilter: Record<string, Date> = {};
         if (from) dateFilter['gte'] = new Date(from);
@@ -570,7 +564,7 @@ router.get(
           }),
           prisma.claim.groupBy({
             by: ['type'],
-            where: { status: 'PAID', payout: { paidAt: { gte: monthStart, lte: monthEnd } } },
+            where: { status: CLAIM_STATUSES.PAID, payout: { paidAt: { gte: monthStart, lte: monthEnd } }, deletedAt: null },
             _sum: { reimbursable: true },
           }),
         ]);
@@ -595,8 +589,8 @@ router.get(
 
       // Summary stats
       const [totalPendingCount, totalPendingAmount, allTimePaid] = await Promise.all([
-        prisma.claim.count({ where: { status: 'APPROVED' } }),
-        prisma.claim.aggregate({ where: { status: 'APPROVED' }, _sum: { reimbursable: true } }),
+        prisma.claim.count({ where: { status: CLAIM_STATUSES.APPROVED, deletedAt: null } }),
+        prisma.claim.aggregate({ where: { status: CLAIM_STATUSES.APPROVED, deletedAt: null }, _sum: { reimbursable: true } }),
         prisma.payout.aggregate({ _sum: { amount: true }, _count: { id: true } }),
       ]);
 
@@ -665,7 +659,8 @@ router.get(
         return;
       }
 
-      if (!['APPROVED', 'PARTIALLY_APPROVED', 'PAID'].includes(claim.status)) {
+      const validPayoutStatuses = [CLAIM_STATUSES.APPROVED, CLAIM_STATUSES.PARTIALLY_APPROVED, CLAIM_STATUSES.PAID] as const;
+      if (!validPayoutStatuses.includes(claim.status as unknown as typeof validPayoutStatuses[number])) {
         res.status(403).json({ error: 'Access denied' });
         return;
       }

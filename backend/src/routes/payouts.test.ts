@@ -2,13 +2,25 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import request from 'supertest'
 import express from 'express'
 
-vi.mock('../lib/prisma', () => ({
-  default: {
+vi.mock('../lib/prisma', () => {
+  const mockPrisma = {
     claim: { findMany: vi.fn(), update: vi.fn() },
     payout: { findUnique: vi.fn(), create: vi.fn() },
     claimEvent: { create: vi.fn() },
-  },
-}))
+  }
+
+  return {
+    default: {
+      ...mockPrisma,
+      $transaction: vi.fn((fn) => {
+        if (typeof fn === 'function') {
+          return Promise.resolve(fn(mockPrisma))
+        }
+        return Promise.resolve(fn)
+      }),
+    },
+  }
+})
 
 vi.mock('../middleware/auth', () => ({
   authenticate: (req: express.Request, _res: express.Response, next: express.NextFunction) => {
@@ -20,6 +32,10 @@ vi.mock('../middleware/auth', () => ({
 vi.mock('../utils/notification', () => ({ createNotification: vi.fn().mockResolvedValue(undefined) }))
 vi.mock('../utils/audit', () => ({ createAuditLog: vi.fn().mockResolvedValue(undefined) }))
 vi.mock('../services/email', () => ({ sendClaimPaid: vi.fn().mockResolvedValue(undefined) }))
+vi.mock('../services/overpayments', () => ({
+  applyRecoupment: vi.fn().mockResolvedValue({ netAmount: 500, offsetIds: [], totalOffset: 0 }),
+  markOffsets: vi.fn().mockResolvedValue(undefined),
+}))
 
 import prisma from '../lib/prisma'
 import payoutsRouter from './payouts'

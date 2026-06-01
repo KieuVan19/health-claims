@@ -105,7 +105,7 @@ const ClaimQueue: React.FC = () => {
         myAppeals: tab === 'myAppeals' ? true : undefined,
         history: tab === 'history' ? true : undefined,
       })
-      let sorted = [...(res.claims ?? [])]
+      let sorted = [...(res.data ?? [])]
       sorted.sort((a, b) => {
         let av: string | number = a[sortField] ?? ''
         let bv: string | number = b[sortField] ?? ''
@@ -116,8 +116,8 @@ const ClaimQueue: React.FC = () => {
         return 0
       })
       setClaims(sorted)
-      setTotal(res.total ?? 0)
-      setTotalPages(res.totalPages ?? 1)
+      setTotal(res.pagination?.total ?? 0)
+      setTotalPages(res.pagination?.totalPages ?? 1)
     } catch {
       setClaims([])
     } finally {

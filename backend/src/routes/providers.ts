@@ -6,7 +6,7 @@ import { requireRole } from '../middleware/roles';
 import { validate } from '../middleware/validate';
 import { createAuditLog } from '../utils/audit';
 import { validateNpi } from '../utils/npi';
-import { getPaginationParams } from '../utils/pagination';
+import { getPaginationParams, createPaginatedResponse } from '../utils/pagination';
 
 const router = Router();
 
@@ -94,7 +94,7 @@ router.get(
         }),
       ]);
 
-      res.json({ providers, total, page: pageNum, totalPages: Math.ceil(total / limitNum) });
+      res.json(createPaginatedResponse(providers, total, pageNum, limitNum));
     } catch (err) {
       next(err);
     }
@@ -103,7 +103,7 @@ router.get(
 
 /**
  * @openapi
- * /providers/{id}:
+ * /providers/{providerId}:
  *   get:
  *     tags: [Providers]
  *     summary: Get a provider by ID
@@ -111,7 +111,7 @@ router.get(
  *       - bearerAuth: []
  *     parameters:
  *       - in: path
- *         name: id
+ *         name: providerId
  *         required: true
  *         schema:
  *           type: string
@@ -122,11 +122,11 @@ router.get(
  *         description: Provider not found
  */
 router.get(
-  '/:id',
+  '/:providerId',
   authenticate,
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const provider = await prisma.provider.findUnique({ where: { id: req.params['id'] } });
+      const provider = await prisma.provider.findUnique({ where: { id: req.params['providerId'] } });
       if (!provider) { res.status(404).json({ error: 'Provider not found' }); return; }
       res.json(provider);
     } catch (err) {
@@ -197,7 +197,7 @@ router.post(
 
 /**
  * @openapi
- * /providers/{id}:
+ * /providers/{providerId}:
  *   put:
  *     tags: [Providers]
  *     summary: Update a provider (Admin only)
@@ -205,7 +205,7 @@ router.post(
  *       - bearerAuth: []
  *     parameters:
  *       - in: path
- *         name: id
+ *         name: providerId
  *         required: true
  *         schema:
  *           type: string
@@ -216,7 +216,7 @@ router.post(
  *         description: Provider not found
  */
 router.put(
-  '/:id',
+  '/:providerId',
   authenticate,
   requireRole('ADMIN'),
   validate(updateProviderSchema),
@@ -224,11 +224,11 @@ router.put(
     try {
       const data = req.body as z.infer<typeof updateProviderSchema>;
 
-      const existing = await prisma.provider.findUnique({ where: { id: req.params['id'] } });
+      const existing = await prisma.provider.findUnique({ where: { id: req.params['providerId'] } });
       if (!existing) { res.status(404).json({ error: 'Provider not found' }); return; }
 
       const provider = await prisma.provider.update({
-        where: { id: req.params['id'] },
+        where: { id: req.params['providerId'] },
         data: {
           ...(data.name !== undefined && { name: data.name }),
           ...(data.providerType !== undefined && { providerType: data.providerType }),
@@ -254,3 +254,4 @@ router.put(
 );
 
 export default router;
+

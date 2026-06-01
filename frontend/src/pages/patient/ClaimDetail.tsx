@@ -23,11 +23,9 @@ import {
 import toast from 'react-hot-toast'
 import {
   getClaim,
-  submitClaim,
   deleteClaim,
-  withdrawClaim,
   downloadEOB,
-  initiateAppeal,
+  executeClaimAction,
 } from '../../api/claims'
 import { downloadDocument } from '../../api/documents'
 import { Claim } from '../../types'
@@ -78,7 +76,7 @@ const ClaimDetail: React.FC = () => {
     if (!claim) return
     setSubmitting(true)
     try {
-      const updated = await submitClaim(claim.id)
+      const updated = await executeClaimAction(claim.id, 'SUBMIT', {}) as any
       setClaim(updated)
       toast.success('Claim submitted successfully!')
     } catch (error: unknown) {
@@ -109,7 +107,7 @@ const ClaimDetail: React.FC = () => {
     if (!claim) return
     setWithdrawing(true)
     try {
-      const updated = await withdrawClaim(claim.id, withdrawReason || undefined)
+      const updated = await executeClaimAction(claim.id, 'WITHDRAW', { reason: withdrawReason || undefined }) as any
       setClaim(updated)
       toast.success('Claim withdrawn')
       setShowWithdrawModal(false)
@@ -127,7 +125,7 @@ const ClaimDetail: React.FC = () => {
     if (!claim || !appealReason.trim()) return
     setAppealing(true)
     try {
-      const updated = await initiateAppeal(claim.id, appealReason)
+      const updated = await executeClaimAction(claim.id, 'APPEAL', { reason: appealReason }) as any
       setClaim(updated)
       toast.success('Appeal submitted successfully')
       setShowAppealModal(false)

@@ -9,10 +9,13 @@ export interface ProvidersParams {
 }
 
 export interface ProvidersResponse {
-  providers: Provider[]
-  total: number
-  page: number
-  totalPages: number
+  data: Provider[]
+  pagination: {
+    total: number
+    page: number
+    limit: number
+    totalPages: number
+  }
 }
 
 export interface CreateProviderData {
