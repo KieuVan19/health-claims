@@ -20,6 +20,10 @@ vi.mock('../middleware/auth', () => ({
 vi.mock('../utils/notification', () => ({ createNotification: vi.fn().mockResolvedValue(undefined) }))
 vi.mock('../utils/audit', () => ({ createAuditLog: vi.fn().mockResolvedValue(undefined) }))
 vi.mock('../services/email', () => ({ sendClaimPaid: vi.fn().mockResolvedValue(undefined) }))
+vi.mock('../services/overpayments', () => ({
+  applyRecoupment: vi.fn().mockResolvedValue({ netAmount: 500, offsetIds: [], totalOffset: 0 }),
+  markOffsets: vi.fn().mockResolvedValue(undefined),
+}))
 
 import prisma from '../lib/prisma'
 import payoutsRouter from './payouts'
