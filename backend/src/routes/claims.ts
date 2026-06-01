@@ -22,6 +22,13 @@ import {
   sendInfoRequested,
   sendAppealDenied,
 } from '../services/email';
+import {
+  CLAIM_STATUSES,
+  CLAIM_TYPES,
+  CLAIM_TERMINAL_STATUSES,
+  NETWORK_STATUSES,
+  CLAIM_LINE_ADJUDICATION_STATUSES,
+} from '../constants/enums';
 
 const router = Router();
 
@@ -50,7 +57,7 @@ const claimLineInputSchema = z.object({
 
 const createClaimSchema = z.object({
   policyId: z.string().min(1, 'Policy is required'),
-  type: z.enum(['HOSPITALIZATION', 'OUTPATIENT', 'DENTAL', 'VISION', 'PHARMACY']),
+  type: z.enum(CLAIM_TYPES),
   description: z.string().min(1, 'Description is required'),
   incidentDate: z.string()
     .transform((v) => new Date(v))
@@ -74,7 +81,7 @@ const updateClaimSchema = createClaimSchema.partial().extend({
 });
 
 const adjudicateLineSchema = z.object({
-  adjudicationStatus: z.enum(['APPROVED', 'DENIED', 'REDUCED']),
+  adjudicationStatus: z.enum(CLAIM_LINE_ADJUDICATION_STATUSES),
   allowedAmount: z.number().positive('Allowed amount must be positive').optional(),
   denialReason: z.string().optional(),
   adjudicatorNote: z.string().optional(),
@@ -146,7 +153,7 @@ type SlaStatus = 'ON_TRACK' | 'AT_RISK' | 'BREACHED';
 
 /** Days a claim has been open (from creation, or since last status change for terminal states) */
 function getDaysOpen(claim: { createdAt: Date; status: string; updatedAt: Date }): number {
-  const reference = ['PAID', 'REJECTED', 'WITHDRAWN', 'APPEAL_DENIED', 'APPROVED', 'PARTIALLY_APPROVED'].includes(claim.status)
+  const reference = CLAIM_TERMINAL_STATUSES.includes(claim.status as any)
     ? claim.updatedAt
     : new Date();
   return Math.floor((reference.getTime() - claim.createdAt.getTime()) / (1000 * 60 * 60 * 24));
@@ -160,8 +167,7 @@ function computeSlaMeta(
   claim: { status: string },
   submittedAt: Date | null,
 ): { ageDays: number; slaStatus: SlaStatus } | null {
-  const terminalStatuses = ['PAID', 'REJECTED', 'WITHDRAWN', 'APPEAL_DENIED', 'APPROVED', 'PARTIALLY_APPROVED', 'DRAFT'];
-  if (terminalStatuses.includes(claim.status) || !submittedAt) return null;
+  if (CLAIM_TERMINAL_STATUSES.includes(claim.status as any) || !submittedAt) return null;
   const ageDays = Math.floor((Date.now() - submittedAt.getTime()) / (1000 * 60 * 60 * 24));
   const { adjudicationDays, warningWindowDays } = config.sla;
   let slaStatus: SlaStatus;

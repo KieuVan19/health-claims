@@ -8,6 +8,7 @@ import { validate } from '../middleware/validate';
 import { authenticate } from '../middleware/auth';
 import { createAuditLog } from '../utils/audit';
 import { sendPasswordReset } from '../services/email';
+import { USER_ROLES } from '../constants/enums';
 
 const router = Router();
 

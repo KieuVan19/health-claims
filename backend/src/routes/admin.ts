@@ -6,6 +6,7 @@ import { authenticate } from '../middleware/auth';
 import { requireRole } from '../middleware/roles';
 import { validate } from '../middleware/validate';
 import { createAuditLog, logRead } from '../utils/audit';
+import { USER_ROLES } from '../constants/enums';
 
 const router = Router();
 
@@ -23,13 +24,13 @@ const createUserSchema = z.object({
     .regex(/[0-9]/),
   firstName: z.string().min(1).max(100),
   lastName: z.string().min(1).max(100),
-  role: z.enum(['PATIENT', 'ADJUSTER', 'FINANCE_OFFICER', 'ADMIN']),
+  role: z.enum(USER_ROLES),
 });
 
 const updateUserSchema = z.object({
   firstName: z.string().min(1).max(100).optional(),
   lastName: z.string().min(1).max(100).optional(),
-  role: z.enum(['PATIENT', 'ADJUSTER', 'FINANCE_OFFICER', 'ADMIN']).optional(),
+  role: z.enum(USER_ROLES).optional(),
   isActive: z.boolean().optional(),
   specialty: z.string().max(100).nullable().optional(),
 });

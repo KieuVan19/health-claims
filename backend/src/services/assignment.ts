@@ -1,6 +1,7 @@
 import prisma from '../lib/prisma';
 import { createAuditLog } from '../utils/audit';
 
+// Claims in these statuses are considered "open" for assignment workload calculation
 const OPEN_STATUSES = ['SUBMITTED', 'UNDER_REVIEW', 'INFO_REQUESTED', 'INFO_RESPONDED', 'APPEAL_PENDING'];
 
 /**

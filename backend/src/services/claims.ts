@@ -1,4 +1,5 @@
 import prisma from '../lib/prisma';
+import { NETWORK_STATUSES, CLAIM_STATUSES, type NetworkStatus } from '../constants/enums';
 
 interface PolicyForCalc {
   coverageAmount: number;
@@ -31,7 +32,7 @@ export function calculateEligible(
   policy: PolicyForCalc,
   deductiblePaid: number = 0,
   oopPaid: number = 0,
-  networkStatus: 'IN' | 'OUT' = 'IN',
+  networkStatus: NetworkStatus = 'IN',
   eligibleAmountOverride?: number,
 ): EligibilityResult {
   const scheduleDeductible =
@@ -104,7 +105,7 @@ export async function getDeductiblePaid(
   policyId: string,
   planYearStart: Date,
   excludeClaimId?: string,
-  networkStatus: 'IN' | 'OUT' = 'IN',
+  networkStatus: NetworkStatus = 'IN',
 ): Promise<number> {
   const result = await prisma.claim.aggregate({
     _sum: { deductible: true },
@@ -132,7 +133,7 @@ export async function getOopPaid(
   policyId: string,
   planYearStart: Date,
   excludeClaimId?: string,
-  networkStatus: 'IN' | 'OUT' = 'IN',
+  networkStatus: NetworkStatus = 'IN',
 ): Promise<number> {
   const claims = await prisma.claim.findMany({
     where: {

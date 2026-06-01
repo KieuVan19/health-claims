@@ -9,6 +9,7 @@ import { createAuditLog } from '../utils/audit';
 import { createNotification } from '../utils/notification';
 import { sendClaimPaid } from '../services/email';
 import { applyRecoupment, markOffsets } from '../services/overpayments';
+import { CLAIM_STATUSES } from '../constants/enums';
 
 const router = Router();
 
@@ -74,7 +75,7 @@ router.get(
       const skip = (pageNum - 1) * limitNum;
 
       const allowedStatuses = ['APPROVED', 'PARTIALLY_APPROVED', 'PAID'];
-      const queryStatus = allowedStatuses.includes(status) ? status : 'APPROVED';
+      const queryStatus = (allowedStatuses as string[]).includes(status) ? status : 'APPROVED';
 
       const where: Record<string, unknown> = { status: queryStatus };
 

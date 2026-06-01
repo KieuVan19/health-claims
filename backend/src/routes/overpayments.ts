@@ -6,6 +6,7 @@ import { requireRole } from '../middleware/roles';
 import { validate } from '../middleware/validate';
 import { createAuditLog } from '../utils/audit';
 import { createNotification } from '../utils/notification';
+import { OVERPAYMENT_REASONS, OVERPAYMENT_STATUSES } from '../constants/enums';
 
 const router = Router();
 
@@ -15,7 +16,7 @@ router.use(authenticate, requireRole('FINANCE_OFFICER', 'ADMIN'));
 
 const createOverpaymentSchema = z.object({
   overpaidAmount: z.number().positive('Overpaid amount must be positive'),
-  reason: z.enum(['ADJUSTER_ERROR', 'COB_UPDATE', 'POLICY_CHANGE']),
+  reason: z.enum(OVERPAYMENT_REASONS),
 });
 
 const waiveOverpaymentSchema = z.object({
@@ -60,8 +61,7 @@ router.get(
       const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10)));
       const skip = (pageNum - 1) * limitNum;
 
-      const validStatuses = ['IDENTIFIED', 'OFFSET', 'WAIVED'];
-      const where = status && validStatuses.includes(status) ? { status } : {};
+      const where = status && OVERPAYMENT_STATUSES.includes(status as any) ? { status } : {};
 
       const [total, overpayments] = await Promise.all([
         prisma.overpayment.count({ where }),
