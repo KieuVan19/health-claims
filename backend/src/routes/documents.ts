@@ -4,11 +4,9 @@ import path from 'path';
 import prisma from '../lib/prisma';
 import { authenticate } from '../middleware/auth';
 import { requireRole } from '../middleware/roles';
-import { requirePatientOwnership, requirePatientOwnershipIfPatient } from '../middleware/ownership';
+import { requireOwnership } from '../middleware/ownership';
 import { uploadDocuments } from '../middleware/upload';
-import { logRead, createAuditLog } from '../utils/audit';
-import { checkPatientOwnershipIfPatient, checkPatientOwnership } from '../utils/ownership';
-import { USER_ROLES, CLAIM_STATUSES } from '../constants/enums';
+import { logRead } from '../utils/audit';
 
 const router = Router();
 
@@ -45,7 +43,7 @@ router.post(
   '/claims/:claimId/upload',
   authenticate,
   requireRole('PATIENT'),
-  requirePatientOwnership('claim', 'claimId'),
+  requireOwnership('claim'),
   (req: Request, res: Response, next: NextFunction): void => {
     uploadDocuments(req, res, (err) => {
       if (err) {
@@ -57,7 +55,7 @@ router.post(
   },
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const claim = req.resource!.claim;
+      const { claimId } = req.params;
 
       const files = req.files as Express.Multer.File[];
       if (!files || files.length === 0) {
@@ -69,7 +67,7 @@ router.post(
         files.map((file) =>
           prisma.document.create({
             data: {
-              claimId: claim.id,
+              claimId,
               filename: file.filename,
               originalName: file.originalname,
               mimeType: file.mimetype,
@@ -108,18 +106,29 @@ router.post(
 router.get(
   '/claims/:claimId',
   authenticate,
-  requirePatientOwnershipIfPatient('claim', 'claimId'),
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const claim = req.resource!.claim;
+      const { claimId } = req.params;
+
+      const claim = await prisma.claim.findUnique({ where: { id: claimId } });
+      if (!claim) {
+        res.status(404).json({ error: 'Claim not found' });
+        return;
+      }
+
+      // Patients can only access their own claim documents
+      if (req.user!.role === 'PATIENT' && claim.patientId !== req.user!.id) {
+        res.status(403).json({ error: 'Access denied' });
+        return;
+      }
 
       const documents = await prisma.document.findMany({
-        where: { claimId: claim.id, deletedAt: null },
+        where: { claimId },
         orderBy: { createdAt: 'desc' },
       });
 
-      const isOwn = req.user!.role === USER_ROLES.PATIENT && claim.patientId === req.user!.id;
-      logRead(req.user!.id, 'DocumentList', claim.id, req, isOwn);
+      const isOwn = req.user!.role === 'PATIENT' && claim.patientId === req.user!.id;
+      logRead(req.user!.id, 'DocumentList', claimId, req, isOwn);
 
       res.json(documents);
     } catch (err) {
@@ -149,12 +158,12 @@ router.get(
 router.get(
   '/:id/download',
   authenticate,
-  requirePatientOwnershipIfPatient('document', 'id', { claim: true }),
+  requireOwnership('document'),
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const document = req.resource!.document;
+      const document = req.resource;
 
-      const isOwn = req.user!.role === USER_ROLES.PATIENT && document.claim.patientId === req.user!.id;
+      const isOwn = req.user!.role === 'PATIENT' && document.claim.patientId === req.user!.id;
       logRead(req.user!.id, 'Document', document.id, req, isOwn);
 
       const filePath = path.resolve(document.path);
@@ -194,17 +203,29 @@ router.delete(
   '/:id',
   authenticate,
   requireRole('PATIENT'),
-  requirePatientOwnership('document', 'id', { claim: true }),
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const document = req.resource!.document;
+      const document = await prisma.document.findUnique({
+        where: { id: req.params['id'] },
+        include: { claim: true },
+      });
+
+      if (!document) {
+        res.status(404).json({ error: 'Document not found' });
+        return;
+      }
+
+      if (document.claim.patientId !== req.user!.id) {
+        res.status(403).json({ error: 'Access denied' });
+        return;
+      }
 
       if (document.isSystemGenerated) {
         res.status(403).json({ error: 'System-generated documents cannot be deleted' });
         return;
       }
 
-      if (document.claim.status !== CLAIM_STATUSES.DRAFT) {
+      if (document.claim.status !== 'DRAFT') {
         res.status(400).json({ error: 'Documents can only be deleted from DRAFT claims' });
         return;
       }
@@ -215,19 +236,7 @@ router.delete(
         fs.unlinkSync(filePath);
       }
 
-      await prisma.document.update({
-        where: { id: document.id },
-        data: { deletedAt: new Date() },
-      });
-
-      await createAuditLog({
-        userId: req.user!.id,
-        action: 'DELETE_DOCUMENT',
-        resource: 'Document',
-        resourceId: document.id,
-        details: { claimId: document.claimId, originalName: document.originalName },
-        ipAddress: req.ip,
-      });
+      await prisma.document.delete({ where: { id: document.id } });
 
       res.json({ message: 'Document deleted successfully' });
     } catch (err) {

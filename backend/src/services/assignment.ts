@@ -1,6 +1,8 @@
 import prisma from '../lib/prisma';
 import { createAuditLog } from '../utils/audit';
-import { OPEN_CLAIM_STATUSES, USER_ROLES, CLAIM_STATUSES } from '../constants/enums';
+
+// Claims in these statuses are considered "open" for assignment workload calculation
+const OPEN_STATUSES = ['SUBMITTED', 'UNDER_REVIEW', 'INFO_REQUESTED', 'INFO_RESPONDED', 'APPEAL_PENDING'];
 
 /**
  * Select the best adjuster for a claim using:
@@ -26,7 +28,7 @@ export async function selectAdjuster(
       const count = await prisma.claim.count({
         where: {
           assignedAdjusterId: adj.id,
-          status: { in: OPEN_CLAIM_STATUSES as unknown as string[] },
+          status: { in: OPEN_STATUSES },
           NOT: { id: claimId },
         },
       });
@@ -87,22 +89,21 @@ export async function autoAssignClaim(
     return;
   }
 
-  await prisma.$transaction([
-    prisma.claim.update({
-      where: { id: claimId },
-      data: { assignedAdjusterId: adjuster.id, status: CLAIM_STATUSES.UNDER_REVIEW },
-    }),
-    prisma.claimEvent.create({
-      data: {
-        claimId,
-        userId: systemUserId,
-        action: 'ASSIGNED',
-        fromStatus: CLAIM_STATUSES.SUBMITTED,
-        toStatus: CLAIM_STATUSES.UNDER_REVIEW,
-        note: `Auto-assigned to ${adjuster.firstName} ${adjuster.lastName}`,
-      },
-    }),
-  ]);
+  await prisma.claim.update({
+    where: { id: claimId },
+    data: { assignedAdjusterId: adjuster.id, status: 'UNDER_REVIEW' },
+  });
+
+  await prisma.claimEvent.create({
+    data: {
+      claimId,
+      userId: systemUserId,
+      action: 'ASSIGNED',
+      fromStatus: 'SUBMITTED',
+      toStatus: 'UNDER_REVIEW',
+      note: `Auto-assigned to ${adjuster.firstName} ${adjuster.lastName}`,
+    },
+  });
 
   await createAuditLog({
     userId: systemUserId,

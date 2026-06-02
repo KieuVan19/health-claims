@@ -8,7 +8,6 @@ import { validate } from '../middleware/validate';
 import { authenticate } from '../middleware/auth';
 import { createAuditLog } from '../utils/audit';
 import { sendPasswordReset } from '../services/email';
-import { passwordSchema, firstNameSchema, lastNameSchema } from '../schemas/common';
 import { USER_ROLES } from '../constants/enums';
 
 const router = Router();
@@ -17,9 +16,13 @@ const router = Router();
 
 const registerSchema = z.object({
   email: z.string().email('Invalid email address'),
-  password: passwordSchema,
-  firstName: firstNameSchema,
-  lastName: lastNameSchema,
+  password: z
+    .string()
+    .min(8, 'Password must be at least 8 characters')
+    .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+    .regex(/[0-9]/, 'Password must contain at least one number'),
+  firstName: z.string().min(1, 'First name is required').max(100),
+  lastName: z.string().min(1, 'Last name is required').max(100),
 });
 
 const loginSchema = z.object({
@@ -32,7 +35,11 @@ const forgotPasswordSchema = z.object({
 });
 
 const resetPasswordSchema = z.object({
-  password: passwordSchema,
+  password: z
+    .string()
+    .min(8, 'Password must be at least 8 characters')
+    .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+    .regex(/[0-9]/, 'Password must contain at least one number'),
 });
 
 // ─── Routes ──────────────────────────────────────────────────────────────────
@@ -76,7 +83,7 @@ router.post(
 
       const hashedPassword = await bcrypt.hash(password, 10);
       const user = await prisma.user.create({
-        data: { email, password: hashedPassword, firstName, lastName, role: USER_ROLES.PATIENT },
+        data: { email, password: hashedPassword, firstName, lastName, role: 'PATIENT' },
         select: { id: true, email: true, firstName: true, lastName: true, role: true, isActive: true, createdAt: true },
       });
 

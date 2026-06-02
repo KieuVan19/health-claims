@@ -1,7 +1,5 @@
 import prisma from '../lib/prisma';
-
-export type OverpaymentReason = 'ADJUSTER_ERROR' | 'COB_UPDATE' | 'POLICY_CHANGE';
-export type OverpaymentStatus = 'IDENTIFIED' | 'OFFSET' | 'WAIVED';
+import { type OverpaymentReason, type OverpaymentStatus } from '../constants/enums';
 
 /**
  * Return the total outstanding (IDENTIFIED) overpayment balance for a patient.

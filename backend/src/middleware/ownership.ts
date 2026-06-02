@@ -1,73 +1,47 @@
 import { Request, Response, NextFunction } from 'express';
 import prisma from '../lib/prisma';
-import { USER_ROLES } from '../constants/enums';
 
+// Extend Express Request to include the loaded resource
 declare global {
   namespace Express {
     interface Request {
-      resource?: {
-        claim?: any;
-        document?: any;
-      };
+      resource?: any;
     }
   }
 }
 
-type ResourceType = 'claim' | 'document';
+type ResourceType = 'claim' | 'document' | 'notification';
 
 /**
- * Middleware to verify patient ownership of a resource.
- * Enforces strict ownership — only the patient can access their resources.
- * Fetches the resource and attaches it to req.resource[type].
+ * Middleware factory that checks resource ownership.
+ * Loads the resource by ID from params and verifies the current user has access.
+ * For patients, only their own resources are accessible.
+ * For staff (ADJUSTER, FINANCE_OFFICER, ADMIN), all resources are accessible.
  */
-export function requirePatientOwnership(
-  resourceType: ResourceType,
-  idParamName: string = 'id',
-  loadRelations?: { [key: string]: boolean },
-) {
+export function requireOwnership(resourceType: ResourceType) {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const resourceId = req.params[idParamName];
-      if (!resourceId) {
-        res.status(400).json({ error: `Missing ${idParamName} parameter` });
+      const id = req.params.id || req.params.claimId;
+      if (!id) {
+        res.status(400).json({ error: 'Resource ID is required' });
         return;
       }
 
-      let resource: any;
-      let patientId: string;
-
-      if (resourceType === 'claim') {
-        resource = await prisma.claim.findUnique({
-          where: { id: resourceId },
-          include: loadRelations || {},
-        });
-        if (!resource) {
-          res.status(404).json({ error: 'Claim not found' });
-          return;
-        }
-        patientId = resource.patientId;
-      } else if (resourceType === 'document') {
-        resource = await prisma.document.findUnique({
-          where: { id: resourceId },
-          include: { claim: true, ...loadRelations },
-        });
-        if (!resource) {
-          res.status(404).json({ error: 'Document not found' });
-          return;
-        }
-        patientId = resource.claim.patientId;
-      } else {
-        res.status(500).json({ error: 'Invalid resource type' });
+      const resource = await getResourceById(resourceType, id);
+      if (!resource) {
+        res.status(404).json({ error: `${capitalize(resourceType)} not found` });
         return;
       }
 
-      if (patientId !== req.user!.id) {
+      // Check access: patients can only access their own resources
+      const hasAccess = checkAccess(req.user!.role, resource, req.user!.id, resourceType);
+      if (!hasAccess) {
         res.status(403).json({ error: 'Access denied' });
         return;
       }
 
-      if (!req.resource) req.resource = {};
-      req.resource[resourceType] = resource;
+      // Attach the resource to the request for use in the handler
+      req.resource = resource;
       next();
     } catch (err) {
       next(err);
@@ -76,61 +50,64 @@ export function requirePatientOwnership(
 }
 
 /**
- * Middleware to verify patient ownership of a resource if the user is a PATIENT.
- * Admins, adjusters, and finance officers have unrestricted access.
- * Fetches the resource and attaches it to req.resource[type].
+ * Load a resource by ID based on type
  */
-export function requirePatientOwnershipIfPatient(
+async function getResourceById(resourceType: ResourceType, id: string): Promise<any> {
+  switch (resourceType) {
+    case 'claim':
+      return await prisma.claim.findUnique({
+        where: { id },
+        include: {
+          patient: { select: { id: true, email: true, firstName: true, lastName: true } },
+          policy: true,
+        },
+      });
+    case 'document':
+      return await prisma.document.findUnique({
+        where: { id },
+        include: { claim: { select: { id: true, patientId: true } } },
+      });
+    case 'notification':
+      return await prisma.notification.findUnique({
+        where: { id },
+      });
+    default:
+      throw new Error(`Unknown resource type: ${resourceType}`);
+  }
+}
+
+/**
+ * Check if the current user has access to the resource.
+ * Patients can only access their own resources.
+ * Staff (ADJUSTER, FINANCE_OFFICER, ADMIN) can access all resources.
+ */
+function checkAccess(
+  role: string,
+  resource: any,
+  userId: string,
   resourceType: ResourceType,
-  idParamName: string = 'id',
-  loadRelations?: { [key: string]: boolean },
-) {
-  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    try {
-      const resourceId = req.params[idParamName];
-      if (!resourceId) {
-        res.status(400).json({ error: `Missing ${idParamName} parameter` });
-        return;
-      }
+): boolean {
+  // Staff always has access
+  if (role !== 'PATIENT') {
+    return true;
+  }
 
-      let resource: any;
-      let patientId: string;
+  // Patient can only access their own resources
+  switch (resourceType) {
+    case 'claim':
+      return resource.patientId === userId;
+    case 'document':
+      return resource.claim.patientId === userId;
+    case 'notification':
+      return resource.userId === userId;
+    default:
+      return false;
+  }
+}
 
-      if (resourceType === 'claim') {
-        resource = await prisma.claim.findUnique({
-          where: { id: resourceId },
-          include: loadRelations || {},
-        });
-        if (!resource) {
-          res.status(404).json({ error: 'Claim not found' });
-          return;
-        }
-        patientId = resource.patientId;
-      } else if (resourceType === 'document') {
-        resource = await prisma.document.findUnique({
-          where: { id: resourceId },
-          include: { claim: true, ...loadRelations },
-        });
-        if (!resource) {
-          res.status(404).json({ error: 'Document not found' });
-          return;
-        }
-        patientId = resource.claim.patientId;
-      } else {
-        res.status(500).json({ error: 'Invalid resource type' });
-        return;
-      }
-
-      if (req.user!.role === USER_ROLES.PATIENT && patientId !== req.user!.id) {
-        res.status(403).json({ error: 'Access denied' });
-        return;
-      }
-
-      if (!req.resource) req.resource = {};
-      req.resource[resourceType] = resource;
-      next();
-    } catch (err) {
-      next(err);
-    }
-  };
+/**
+ * Capitalize first letter of string
+ */
+function capitalize(str: string): string {
+  return str.charAt(0).toUpperCase() + str.slice(1);
 }

@@ -9,7 +9,7 @@ import { createAuditLog } from '../utils/audit';
 import { createNotification } from '../utils/notification';
 import { sendClaimPaid } from '../services/email';
 import { applyRecoupment, markOffsets } from '../services/overpayments';
-import { getPaginationParams, createPaginatedResponse } from '../utils/pagination';
+import { paginatedResponse } from '../utils/response';
 import { CLAIM_STATUSES } from '../constants/enums';
 
 const router = Router();
@@ -71,12 +71,14 @@ router.get(
         search,
       } = req.query as Record<string, string>;
 
-      const { pageNum, limitNum, skip } = getPaginationParams(page, limit);
+      const pageNum = Math.max(1, parseInt(page, 10));
+      const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10)));
+      const skip = (pageNum - 1) * limitNum;
 
-      const allowedStatuses = [CLAIM_STATUSES.APPROVED, CLAIM_STATUSES.PARTIALLY_APPROVED, CLAIM_STATUSES.PAID] as const;
-      const queryStatus = allowedStatuses.includes(status as unknown as typeof allowedStatuses[number]) ? status : CLAIM_STATUSES.APPROVED;
+      const allowedStatuses = ['APPROVED', 'PARTIALLY_APPROVED', 'PAID'];
+      const queryStatus = (allowedStatuses as string[]).includes(status) ? status : 'APPROVED';
 
-      const where: Record<string, unknown> = { status: queryStatus, deletedAt: null };
+      const where: Record<string, unknown> = { status: queryStatus };
 
       if (search) {
         where['OR'] = [
@@ -96,7 +98,7 @@ router.get(
           toDate.setHours(23, 59, 59, 999);
           dateFilter['lte'] = toDate;
         }
-        if (queryStatus === CLAIM_STATUSES.PAID) {
+        if (queryStatus === 'PAID') {
           where['payout'] = { paidAt: dateFilter };
         } else {
           where['updatedAt'] = dateFilter;
@@ -123,7 +125,7 @@ router.get(
         }),
       ]);
 
-      res.json(createPaginatedResponse(claims, total, pageNum, limitNum));
+      res.json(paginatedResponse(claims, total, pageNum, limitNum));
     } catch (err) {
       next(err);
     }
@@ -178,7 +180,7 @@ router.post(
         return;
       }
 
-      if (claim.status !== CLAIM_STATUSES.APPROVED) {
+      if (claim.status !== 'APPROVED') {
         res.status(400).json({ error: 'Only APPROVED claims can be paid' });
         return;
       }
@@ -197,10 +199,10 @@ router.post(
         grossAmount,
       );
 
-      const [updatedClaim, payout] = await prisma.$transaction([
+      const [updatedClaim, payout] = await Promise.all([
         prisma.claim.update({
           where: { id: claimId },
-          data: { status: CLAIM_STATUSES.PAID },
+          data: { status: 'PAID' },
           include: {
             patient: { select: { id: true, email: true, firstName: true, lastName: true } },
             policy: true,
@@ -221,8 +223,8 @@ router.post(
             claimId,
             userId: req.user!.id,
             action: 'PAID',
-            fromStatus: CLAIM_STATUSES.APPROVED,
-            toStatus: CLAIM_STATUSES.PAID,
+            fromStatus: 'APPROVED',
+            toStatus: 'PAID',
             note: `Payment reference: ${paymentRef}`,
           },
         }),
@@ -298,8 +300,7 @@ router.post(
       const claims = await prisma.claim.findMany({
         where: {
           id: { in: claimIds },
-          status: CLAIM_STATUSES.APPROVED,
-          deletedAt: null,
+          status: 'APPROVED',
         },
         include: { patient: true },
       });
@@ -334,10 +335,10 @@ router.post(
             grossAmount,
           );
 
-          await prisma.$transaction([
+          await Promise.all([
             prisma.claim.update({
               where: { id: claim.id },
-              data: { status: CLAIM_STATUSES.PAID },
+              data: { status: 'PAID' },
             }),
             prisma.payout.create({
               data: {
@@ -354,8 +355,8 @@ router.post(
                 claimId: claim.id,
                 userId: req.user!.id,
                 action: 'PAID',
-                fromStatus: CLAIM_STATUSES.APPROVED,
-                toStatus: CLAIM_STATUSES.PAID,
+                fromStatus: 'APPROVED',
+                toStatus: 'PAID',
                 note: isBatch ? `Batch payment: ${paymentRef}` : `Payment reference: ${paymentRef}`,
               },
             }),
@@ -433,7 +434,7 @@ router.get(
     try {
       const { from, to } = req.query as Record<string, string>;
 
-      const where: Record<string, unknown> = { status: CLAIM_STATUSES.PAID, deletedAt: null };
+      const where: Record<string, unknown> = { status: 'PAID' };
       if (from || to) {
         const dateFilter: Record<string, Date> = {};
         if (from) dateFilter['gte'] = new Date(from);
@@ -564,7 +565,7 @@ router.get(
           }),
           prisma.claim.groupBy({
             by: ['type'],
-            where: { status: CLAIM_STATUSES.PAID, payout: { paidAt: { gte: monthStart, lte: monthEnd } }, deletedAt: null },
+            where: { status: 'PAID', payout: { paidAt: { gte: monthStart, lte: monthEnd } } },
             _sum: { reimbursable: true },
           }),
         ]);
@@ -589,8 +590,8 @@ router.get(
 
       // Summary stats
       const [totalPendingCount, totalPendingAmount, allTimePaid] = await Promise.all([
-        prisma.claim.count({ where: { status: CLAIM_STATUSES.APPROVED, deletedAt: null } }),
-        prisma.claim.aggregate({ where: { status: CLAIM_STATUSES.APPROVED, deletedAt: null }, _sum: { reimbursable: true } }),
+        prisma.claim.count({ where: { status: 'APPROVED' } }),
+        prisma.claim.aggregate({ where: { status: 'APPROVED' }, _sum: { reimbursable: true } }),
         prisma.payout.aggregate({ _sum: { amount: true }, _count: { id: true } }),
       ]);
 
@@ -659,8 +660,7 @@ router.get(
         return;
       }
 
-      const validPayoutStatuses = [CLAIM_STATUSES.APPROVED, CLAIM_STATUSES.PARTIALLY_APPROVED, CLAIM_STATUSES.PAID] as const;
-      if (!validPayoutStatuses.includes(claim.status as unknown as typeof validPayoutStatuses[number])) {
+      if (!['APPROVED', 'PARTIALLY_APPROVED', 'PAID'].includes(claim.status)) {
         res.status(403).json({ error: 'Access denied' });
         return;
       }

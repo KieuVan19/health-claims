@@ -6,8 +6,8 @@ import { requireRole } from '../middleware/roles';
 import { validate } from '../middleware/validate';
 import { createAuditLog } from '../utils/audit';
 import { createNotification } from '../utils/notification';
-import { getPaginationParams, createPaginatedResponse } from '../utils/pagination';
-import { OVERPAYMENT_REASONS, OVERPAYMENT_STATUSES, CLAIM_STATUSES } from '../constants/enums';
+import { paginatedResponse } from '../utils/response';
+import { OVERPAYMENT_REASONS, OVERPAYMENT_STATUSES } from '../constants/enums';
 
 const router = Router();
 
@@ -17,15 +17,10 @@ router.use(authenticate, requireRole('FINANCE_OFFICER', 'ADMIN'));
 
 const createOverpaymentSchema = z.object({
   overpaidAmount: z.number().positive('Overpaid amount must be positive'),
-  reason: z.enum([OVERPAYMENT_REASONS.ADJUSTER_ERROR, OVERPAYMENT_REASONS.COB_UPDATE, OVERPAYMENT_REASONS.POLICY_CHANGE] as const),
+  reason: z.enum(OVERPAYMENT_REASONS),
 });
 
 const waiveOverpaymentSchema = z.object({
-  waiverReason: z.string().min(1, 'Waiver reason is required'),
-});
-
-const bulkWaiveSchema = z.object({
-  overpaymentIds: z.array(z.string()).min(1, 'At least one overpayment ID is required'),
   waiverReason: z.string().min(1, 'Waiver reason is required'),
 });
 
@@ -63,10 +58,11 @@ router.get(
     try {
       const { status, page = '1', limit = '20' } = req.query as Record<string, string>;
 
-      const { pageNum, limitNum, skip } = getPaginationParams(page, limit);
+      const pageNum = Math.max(1, parseInt(page, 10));
+      const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10)));
+      const skip = (pageNum - 1) * limitNum;
 
-      const validStatuses = [OVERPAYMENT_STATUSES.IDENTIFIED, OVERPAYMENT_STATUSES.OFFSET, OVERPAYMENT_STATUSES.WAIVED] as const;
-      const where = status && validStatuses.includes(status as unknown as typeof validStatuses[number]) ? { status, deletedAt: null } : { deletedAt: null };
+      const where = status && OVERPAYMENT_STATUSES.includes(status as any) ? { status } : {};
 
       const [total, overpayments] = await Promise.all([
         prisma.overpayment.count({ where }),
@@ -91,7 +87,7 @@ router.get(
         }),
       ]);
 
-      res.json(createPaginatedResponse(overpayments, total, pageNum, limitNum));
+      res.json(paginatedResponse(overpayments, total, pageNum, limitNum));
     } catch (err) {
       next(err);
     }
@@ -147,7 +143,7 @@ router.post(
         return;
       }
 
-      if (claim.status !== CLAIM_STATUSES.PAID) {
+      if (claim.status !== 'PAID') {
         res.status(400).json({ error: 'Only PAID claims can be flagged as overpaid' });
         return;
       }
@@ -171,7 +167,7 @@ router.post(
           originalPayoutId: claim.payout.id,
           overpaidAmount,
           reason,
-          status: OVERPAYMENT_STATUSES.IDENTIFIED,
+          status: 'IDENTIFIED',
         },
         include: {
           claim: {
@@ -202,7 +198,7 @@ router.post(
 
 /**
  * @openapi
- * /overpayments/{overpaymentId}/waive:
+ * /overpayments/{id}/waive:
  *   post:
  *     tags: [Overpayments]
  *     summary: Waive an identified overpayment
@@ -210,7 +206,7 @@ router.post(
  *       - bearerAuth: []
  *     parameters:
  *       - in: path
- *         name: overpaymentId
+ *         name: id
  *         required: true
  *         schema:
  *           type: string
@@ -228,107 +224,12 @@ router.post(
  *       200:
  *         description: Overpayment waived
  */
-/**
- * @openapi
- * /overpayments/bulk-waive:
- *   post:
- *     tags: [Overpayments]
- *     summary: Bulk waive multiple identified overpayments
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required: [overpaymentIds, waiverReason]
- *             properties:
- *               overpaymentIds:
- *                 type: array
- *                 items:
- *                   type: string
- *               waiverReason:
- *                 type: string
- *     responses:
- *       200:
- *         description: Bulk waive processed
- */
 router.post(
-  '/bulk-waive',
-  validate(bulkWaiveSchema),
-  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    try {
-      const { overpaymentIds, waiverReason } = req.body as z.infer<typeof bulkWaiveSchema>;
-
-      const overpayments = await prisma.overpayment.findMany({
-        where: {
-          id: { in: overpaymentIds },
-          status: OVERPAYMENT_STATUSES.IDENTIFIED,
-          deletedAt: null,
-        },
-        include: {
-          claim: { select: { patientId: true, claimNumber: true } },
-        },
-      });
-
-      if (overpayments.length === 0) {
-        res.status(400).json({ error: 'No IDENTIFIED overpayments found for the provided IDs' });
-        return;
-      }
-
-      const processed: { overpaymentId: string; claimNumber: string; overpaidAmount: number }[] = [];
-      const errors: { overpaymentId: string; error: string }[] = [];
-
-      for (const overpayment of overpayments) {
-        try {
-          const updated = await prisma.overpayment.update({
-            where: { id: overpayment.id },
-            data: { status: OVERPAYMENT_STATUSES.WAIVED, waiverReason },
-          });
-
-          await createNotification({
-            userId: overpayment.claim.patientId,
-            title: 'Overpayment Waived',
-            message: `The overpayment of $${overpayment.overpaidAmount.toFixed(2)} on claim ${overpayment.claim.claimNumber} has been waived.`,
-            type: 'info',
-            link: `/claims/${overpayment.claimId}`,
-          });
-
-          processed.push({
-            overpaymentId: updated.id,
-            claimNumber: overpayment.claim.claimNumber,
-            overpaidAmount: overpayment.overpaidAmount,
-          });
-        } catch (err) {
-          errors.push({
-            overpaymentId: overpayment.id,
-            error: err instanceof Error ? err.message : 'Failed to waive overpayment',
-          });
-        }
-      }
-
-      await createAuditLog({
-        userId: req.user!.id,
-        action: 'BULK_WAIVE_OVERPAYMENT',
-        resource: 'Overpayment',
-        details: { count: processed.length, overpaymentIds },
-        ipAddress: req.ip,
-      });
-
-      res.json({ processed, errors });
-    } catch (err) {
-      next(err);
-    }
-  },
-);
-
-router.post(
-  '/:overpaymentId/waive',
+  '/:id/waive',
   validate(waiveOverpaymentSchema),
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { overpaymentId: id } = req.params;
+      const { id } = req.params;
       const { waiverReason } = req.body as z.infer<typeof waiveOverpaymentSchema>;
 
       const overpayment = await prisma.overpayment.findUnique({
@@ -349,14 +250,14 @@ router.post(
       }
 
       // Immutability guard: cannot waive once already offset or waived
-      if (overpayment.status !== OVERPAYMENT_STATUSES.IDENTIFIED) {
+      if (overpayment.status !== 'IDENTIFIED') {
         res.status(400).json({ error: `Cannot waive an overpayment in status ${overpayment.status}` });
         return;
       }
 
       const updated = await prisma.overpayment.update({
         where: { id },
-        data: { status: OVERPAYMENT_STATUSES.WAIVED, waiverReason },
+        data: { status: 'WAIVED', waiverReason },
       });
 
       await createAuditLog({
@@ -385,7 +286,7 @@ router.post(
 
 /**
  * @openapi
- * /overpayments/{overpaymentId}:
+ * /overpayments/{id}:
  *   get:
  *     tags: [Overpayments]
  *     summary: Get a single overpayment record
@@ -393,7 +294,7 @@ router.post(
  *       - bearerAuth: []
  *     parameters:
  *       - in: path
- *         name: overpaymentId
+ *         name: id
  *         required: true
  *         schema:
  *           type: string
@@ -402,10 +303,10 @@ router.post(
  *         description: Overpayment detail
  */
 router.get(
-  '/:overpaymentId',
+  '/:id',
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { overpaymentId: id } = req.params;
+      const { id } = req.params;
 
       const overpayment = await prisma.overpayment.findUnique({
         where: { id },
@@ -437,4 +338,3 @@ router.get(
 );
 
 export default router;
-
