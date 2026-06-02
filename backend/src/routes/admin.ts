@@ -8,7 +8,7 @@ import { validate } from '../middleware/validate';
 import { createAuditLog, logRead } from '../utils/audit';
 import { paginatedResponse } from '../utils/response';
 import { buildSearchWhere } from '../utils/filters';
-import { USER_ROLES } from '../constants/enums';
+import { USER_ROLES, USER_ROLES_ARRAY } from '../constants/enums';
 
 const router = Router();
 
@@ -26,13 +26,13 @@ const createUserSchema = z.object({
     .regex(/[0-9]/),
   firstName: z.string().min(1).max(100),
   lastName: z.string().min(1).max(100),
-  role: z.enum(USER_ROLES),
+  role: z.enum(USER_ROLES_ARRAY),
 });
 
 const updateUserSchema = z.object({
   firstName: z.string().min(1).max(100).optional(),
   lastName: z.string().min(1).max(100).optional(),
-  role: z.enum(USER_ROLES).optional(),
+  role: z.enum(USER_ROLES_ARRAY).optional(),
   isActive: z.boolean().optional(),
   specialty: z.string().max(100).nullable().optional(),
 });

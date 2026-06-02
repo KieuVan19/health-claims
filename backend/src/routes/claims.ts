@@ -28,6 +28,7 @@ import {
 import {
   CLAIM_STATUSES,
   CLAIM_TYPES,
+  CLAIM_TYPES_ARRAY,
   CLAIM_TERMINAL_STATUSES,
   NETWORK_STATUSES,
   CLAIM_LINE_ADJUDICATION_STATUSES,
@@ -60,7 +61,7 @@ const claimLineInputSchema = z.object({
 
 const createClaimSchema = z.object({
   policyId: z.string().min(1, 'Policy is required'),
-  type: z.enum(CLAIM_TYPES),
+  type: z.enum(CLAIM_TYPES_ARRAY),
   description: z.string().min(1, 'Description is required'),
   incidentDate: z.string()
     .transform((v) => new Date(v))
@@ -84,7 +85,7 @@ const updateClaimSchema = createClaimSchema.partial().extend({
 });
 
 const adjudicateLineSchema = z.object({
-  adjudicationStatus: z.enum(CLAIM_LINE_ADJUDICATION_STATUSES),
+  adjudicationStatus: z.enum(CLAIM_LINE_ADJUDICATION_STATUSES as unknown as readonly [string, ...string[]]),
   allowedAmount: z.number().positive('Allowed amount must be positive').optional(),
   denialReason: z.string().optional(),
   adjudicatorNote: z.string().optional(),

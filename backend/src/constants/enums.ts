@@ -1,14 +1,23 @@
-// Centralized enum definitions for the entire application
-// This is the single source of truth for all statuses, roles, and constants
+// Claim Status Lifecycle
+export const CLAIM_STATUSES = {
+  DRAFT: 'DRAFT',
+  SUBMITTED: 'SUBMITTED',
+  UNDER_REVIEW: 'UNDER_REVIEW',
+  INFO_REQUESTED: 'INFO_REQUESTED',
+  INFO_RESPONDED: 'INFO_RESPONDED',
+  APPROVED: 'APPROVED',
+  PARTIALLY_APPROVED: 'PARTIALLY_APPROVED',
+  REJECTED: 'REJECTED',
+  PAID: 'PAID',
+  WITHDRAWN: 'WITHDRAWN',
+  APPEAL_PENDING: 'APPEAL_PENDING',
+  APPEAL_DENIED: 'APPEAL_DENIED',
+} as const;
 
-// ─── User Roles ─────────────────────────────────────────────────────────────
+export type ClaimStatus = typeof CLAIM_STATUSES[keyof typeof CLAIM_STATUSES];
 
-export const USER_ROLES = ['PATIENT', 'ADJUSTER', 'FINANCE_OFFICER', 'ADMIN'] as const;
-export type UserRole = (typeof USER_ROLES)[number];
-
-// ─── Claim Statuses ─────────────────────────────────────────────────────────
-
-export const CLAIM_STATUSES = [
+// For Zod validation - use array values
+export const CLAIM_STATUSES_ARRAY = [
   'DRAFT',
   'SUBMITTED',
   'UNDER_REVIEW',
@@ -22,71 +31,135 @@ export const CLAIM_STATUSES = [
   'APPEAL_PENDING',
   'APPEAL_DENIED',
 ] as const;
-export type ClaimStatus = (typeof CLAIM_STATUSES)[number];
+
+// Open claim statuses that can be assigned or transitioned
+export const OPEN_CLAIM_STATUSES = [
+  CLAIM_STATUSES.SUBMITTED,
+  CLAIM_STATUSES.UNDER_REVIEW,
+  CLAIM_STATUSES.INFO_REQUESTED,
+  CLAIM_STATUSES.INFO_RESPONDED,
+  CLAIM_STATUSES.APPEAL_PENDING,
+] as const;
 
 // Terminal statuses where SLA is no longer active
 export const CLAIM_TERMINAL_STATUSES = [
-  'PAID',
-  'REJECTED',
-  'WITHDRAWN',
-  'APPEAL_DENIED',
-  'APPROVED',
-  'PARTIALLY_APPROVED',
-  'DRAFT',
+  CLAIM_STATUSES.PAID,
+  CLAIM_STATUSES.REJECTED,
+  CLAIM_STATUSES.WITHDRAWN,
+  CLAIM_STATUSES.APPEAL_DENIED,
 ] as const;
 
-// ─── Claim Types ────────────────────────────────────────────────────────────
+// User Roles
+export const USER_ROLES = {
+  PATIENT: 'PATIENT',
+  ADJUSTER: 'ADJUSTER',
+  FINANCE_OFFICER: 'FINANCE_OFFICER',
+  ADMIN: 'ADMIN',
+} as const;
 
-export const CLAIM_TYPES = [
-  'HOSPITALIZATION',
-  'OUTPATIENT',
-  'DENTAL',
-  'VISION',
-  'PHARMACY',
-] as const;
-export type ClaimType = (typeof CLAIM_TYPES)[number];
+export type UserRole = typeof USER_ROLES[keyof typeof USER_ROLES];
 
-// ─── Network Status ─────────────────────────────────────────────────────────
+export const USER_ROLES_ARRAY = ['PATIENT', 'ADJUSTER', 'FINANCE_OFFICER', 'ADMIN'] as const;
 
-export const NETWORK_STATUSES = ['IN', 'OUT'] as const;
-export type NetworkStatus = (typeof NETWORK_STATUSES)[number];
+// Claim Types
+export const CLAIM_TYPES = {
+  HOSPITALIZATION: 'HOSPITALIZATION',
+  OUTPATIENT: 'OUTPATIENT',
+  DENTAL: 'DENTAL',
+  VISION: 'VISION',
+  PHARMACY: 'PHARMACY',
+} as const;
 
-// ─── Claim Line Adjudication Status ─────────────────────────────────────────
+export type ClaimType = typeof CLAIM_TYPES[keyof typeof CLAIM_TYPES];
 
-export const CLAIM_LINE_ADJUDICATION_STATUSES = [
-  'PENDING',
-  'APPROVED',
-  'DENIED',
-  'REDUCED',
-] as const;
-export type ClaimLineAdjudicationStatus = (typeof CLAIM_LINE_ADJUDICATION_STATUSES)[number];
+export const CLAIM_TYPES_ARRAY = ['HOSPITALIZATION', 'OUTPATIENT', 'DENTAL', 'VISION', 'PHARMACY'] as const;
 
-// ─── Overpayment Statuses ───────────────────────────────────────────────────
+// Network Status
+export const NETWORK_STATUSES = {
+  IN: 'IN',
+  OUT: 'OUT',
+} as const;
 
-export const OVERPAYMENT_STATUSES = ['IDENTIFIED', 'OFFSET', 'WAIVED'] as const;
-export type OverpaymentStatus = (typeof OVERPAYMENT_STATUSES)[number];
+export type NetworkStatus = typeof NETWORK_STATUSES[keyof typeof NETWORK_STATUSES];
 
-// ─── Overpayment Reasons ────────────────────────────────────────────────────
+export const NETWORK_STATUSES_ARRAY = ['IN', 'OUT'] as const;
 
-export const OVERPAYMENT_REASONS = ['ADJUSTER_ERROR', 'COB_UPDATE', 'POLICY_CHANGE'] as const;
-export type OverpaymentReason = (typeof OVERPAYMENT_REASONS)[number];
+// Line Adjudication Status
+export const ADJUDICATION_STATUSES = {
+  PENDING: 'PENDING',
+  APPROVED: 'APPROVED',
+  DENIED: 'DENIED',
+  REDUCED: 'REDUCED',
+} as const;
 
-// ─── Document Type ──────────────────────────────────────────────────────────
+export type AdjudicationStatus = typeof ADJUDICATION_STATUSES[keyof typeof ADJUDICATION_STATUSES];
 
-export const DOCUMENT_TYPES = ['DOCUMENT'] as const;
-export type DocumentType = (typeof DOCUMENT_TYPES)[number];
+export const ADJUDICATION_STATUSES_ARRAY = ['PENDING', 'APPROVED', 'DENIED', 'REDUCED'] as const;
 
-// ─── Notification Type ──────────────────────────────────────────────────────
+// Claim Line Adjudication Status (alias)
+export const CLAIM_LINE_ADJUDICATION_STATUSES = ADJUDICATION_STATUSES_ARRAY;
+export type ClaimLineAdjudicationStatus = AdjudicationStatus;
 
-export const NOTIFICATION_TYPES = ['info', 'success', 'warning', 'error'] as const;
-export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
+// Document Types
+export const DOCUMENT_TYPES = {
+  DOCUMENT: 'DOCUMENT',
+  EOB: 'EOB',
+} as const;
 
-// ─── UserPolicy Plan Year Type ──────────────────────────────────────────────
+export type DocumentType = typeof DOCUMENT_TYPES[keyof typeof DOCUMENT_TYPES];
 
-export const PLAN_YEAR_TYPES = ['CALENDAR', 'FISCAL'] as const;
-export type PlanYearType = (typeof PLAN_YEAR_TYPES)[number];
+export const DOCUMENT_TYPES_ARRAY = ['DOCUMENT', 'EOB'] as const;
 
-// ─── UserPolicy Payer Order ─────────────────────────────────────────────────
+// Notification Types
+export const NOTIFICATION_TYPES = {
+  INFO: 'info',
+  SUCCESS: 'success',
+  WARNING: 'warning',
+  ERROR: 'error',
+} as const;
 
-export const PAYER_ORDERS = ['PRIMARY', 'SECONDARY'] as const;
-export type PayerOrder = (typeof PAYER_ORDERS)[number];
+export type NotificationType = typeof NOTIFICATION_TYPES[keyof typeof NOTIFICATION_TYPES];
+
+export const NOTIFICATION_TYPES_ARRAY = ['info', 'success', 'warning', 'error'] as const;
+
+// Payer Order
+export const PAYER_ORDERS = {
+  PRIMARY: 'PRIMARY',
+  SECONDARY: 'SECONDARY',
+} as const;
+
+export type PayerOrder = typeof PAYER_ORDERS[keyof typeof PAYER_ORDERS];
+
+export const PAYER_ORDERS_ARRAY = ['PRIMARY', 'SECONDARY'] as const;
+
+// Plan Year Type
+export const PLAN_YEAR_TYPES = {
+  CALENDAR: 'CALENDAR',
+  FISCAL: 'FISCAL',
+} as const;
+
+export type PlanYearType = typeof PLAN_YEAR_TYPES[keyof typeof PLAN_YEAR_TYPES];
+
+export const PLAN_YEAR_TYPES_ARRAY = ['CALENDAR', 'FISCAL'] as const;
+
+// Overpayment Status
+export const OVERPAYMENT_STATUSES = {
+  IDENTIFIED: 'IDENTIFIED',
+  OFFSET: 'OFFSET',
+  WAIVED: 'WAIVED',
+} as const;
+
+export type OverpaymentStatus = typeof OVERPAYMENT_STATUSES[keyof typeof OVERPAYMENT_STATUSES];
+
+export const OVERPAYMENT_STATUSES_ARRAY = ['IDENTIFIED', 'OFFSET', 'WAIVED'] as const;
+
+// Overpayment Reasons
+export const OVERPAYMENT_REASONS = {
+  ADJUSTER_ERROR: 'ADJUSTER_ERROR',
+  COB_UPDATE: 'COB_UPDATE',
+  POLICY_CHANGE: 'POLICY_CHANGE',
+} as const;
+
+export type OverpaymentReason = typeof OVERPAYMENT_REASONS[keyof typeof OVERPAYMENT_REASONS];
+
+export const OVERPAYMENT_REASONS_ARRAY = ['ADJUSTER_ERROR', 'COB_UPDATE', 'POLICY_CHANGE'] as const;
