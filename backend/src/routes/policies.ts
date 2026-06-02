@@ -366,6 +366,18 @@ router.post(
         res.status(404).json({ error: 'User not found' });
         return;
       }
+      if (user.role !== USER_ROLES.PATIENT) {
+        res.status(400).json({ error: 'Policy can only be assigned to patients' });
+        return;
+      }
+
+      const existing = await prisma.userPolicy.findUnique({
+        where: { userId_policyId: { userId: targetUserId, policyId } },
+      });
+      if (existing) {
+        res.status(409).json({ error: 'This policy is already assigned to this patient' });
+        return;
+      }
 
       const userPolicy = await prisma.userPolicy.create({
         data: { userId: targetUserId, policyId, startDate: new Date(), planYearType: planYearType ?? PLAN_YEAR_TYPES.CALENDAR },
