@@ -676,29 +676,17 @@ router.post(
 router.get(
   '/:id',
   authenticate,
+  requireOwnership('claim'),
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const claim = await prisma.claim.findUnique({
-        where: { id: req.params['id'] },
-        include: claimInclude,
-      });
-
-      if (!claim) {
-        res.status(404).json({ error: 'Claim not found' });
-        return;
-      }
-
-      if (req.user!.role === 'PATIENT' && claim.patientId !== req.user!.id) {
-        res.status(403).json({ error: 'Access denied' });
-        return;
-      }
+      const claim = req.resource;
 
       const isOwn = req.user!.role === 'PATIENT' && claim.patientId === req.user!.id;
       logRead(req.user!.id, 'Claim', claim.id, req, isOwn);
 
       // Derive submittedAt and ack SLA from events already included in the claim
-      const submittedEvent = claim.events.find((e) => e.toStatus === 'SUBMITTED');
-      const underReviewEvent = claim.events.find((e) => e.toStatus === 'UNDER_REVIEW');
+      const submittedEvent = claim.events.find((e: any) => e.toStatus === 'SUBMITTED');
+      const underReviewEvent = claim.events.find((e: any) => e.toStatus === 'UNDER_REVIEW');
       const submittedAt = submittedEvent?.createdAt ?? null;
       const ackDays = (submittedAt && underReviewEvent)
         ? Math.floor((underReviewEvent.createdAt.getTime() - submittedAt.getTime()) / (1000 * 60 * 60 * 24))
@@ -807,8 +795,10 @@ router.get(
 router.get(
   '/:id/eob',
   authenticate,
+  requireOwnership('claim'),
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
+      // Load additional relations needed for EOB
       const claim = await prisma.claim.findUnique({
         where: { id: req.params['id'] },
         include: {
@@ -821,11 +811,6 @@ router.get(
 
       if (!claim) {
         res.status(404).json({ error: 'Claim not found' });
-        return;
-      }
-
-      if (req.user!.role === 'PATIENT' && claim.patientId !== req.user!.id) {
-        res.status(403).json({ error: 'Access denied' });
         return;
       }
 
@@ -1224,22 +1209,13 @@ function deriveClaimStatusFromLines(
 router.post(
   '/:id/actions',
   authenticate,
+  requireOwnership('claim'),
   validate(claimActionSchema),
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const claimId = req.params['id'];
+      const claim = req.resource;
       const actionReq = req.body as z.infer<typeof claimActionSchema>;
       const { role, id: userId } = req.user!;
-
-      const claim = await prisma.claim.findUnique({
-        where: { id: claimId },
-        include: claimInclude,
-      });
-
-      if (!claim) {
-        res.status(404).json({ error: 'Claim not found' });
-        return;
-      }
 
       let result: any;
       let auditAction: string = actionReq.action;
@@ -1248,10 +1224,6 @@ router.post(
         case 'SUBMIT': {
           if (role !== 'PATIENT') {
             res.status(403).json({ error: 'Only patients can submit claims' });
-            return;
-          }
-          if (claim.patientId !== userId) {
-            res.status(403).json({ error: 'Access denied' });
             return;
           }
           if (claim.status !== 'DRAFT') {
@@ -2156,7 +2128,7 @@ router.post(
             lineId: string;
           };
 
-          const line = claim.lines.find((l) => l.id === lineId);
+          const line = claim.lines.find((l: any) => l.id === lineId);
           if (!line) {
             res.status(404).json({ error: 'Line not found on this claim' });
             return;
@@ -2256,7 +2228,7 @@ router.post(
           userId,
           action: auditAction,
           resource: 'Claim',
-          resourceId: claimId,
+          resourceId: claim.id,
           details: { claimNumber: claim.claimNumber, action: (actionReq as any).action },
           ipAddress: req.ip,
         });

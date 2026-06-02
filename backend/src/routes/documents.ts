@@ -40,9 +40,10 @@ const router = Router();
  *         description: Documents uploaded
  */
 router.post(
-  '/upload',
+  '/claims/:claimId/upload',
   authenticate,
   requireRole('PATIENT'),
+  requireOwnership('claim'),
   (req: Request, res: Response, next: NextFunction): void => {
     uploadDocuments(req, res, (err) => {
       if (err) {
@@ -54,12 +55,7 @@ router.post(
   },
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { claimId } = req.query as Record<string, string>;
-
-      if (!claimId) {
-        res.status(400).json({ error: 'claimId query parameter is required' });
-        return;
-      }
+      const { claimId } = req.params;
 
       const files = req.files as Express.Multer.File[];
       if (!files || files.length === 0) {
@@ -108,28 +104,13 @@ router.post(
  *         description: List of documents
  */
 router.get(
-  '/',
+  '/claims/:claimId',
   authenticate,
+  requireOwnership('claim'),
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { claimId } = req.query as Record<string, string>;
-
-      if (!claimId) {
-        res.status(400).json({ error: 'claimId query parameter is required' });
-        return;
-      }
-
-      const claim = await prisma.claim.findUnique({ where: { id: claimId } });
-      if (!claim) {
-        res.status(404).json({ error: 'Claim not found' });
-        return;
-      }
-
-      // Patients can only access their own claim documents
-      if (req.user!.role === 'PATIENT' && claim.patientId !== req.user!.id) {
-        res.status(403).json({ error: 'Access denied' });
-        return;
-      }
+      const { claimId } = req.params;
+      const claim = req.resource;
 
       const documents = await prisma.document.findMany({
         where: { claimId, deletedAt: null },
@@ -212,22 +193,10 @@ router.delete(
   '/:id',
   authenticate,
   requireRole('PATIENT'),
+  requireOwnership('document'),
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const document = await prisma.document.findUnique({
-        where: { id: req.params['id'] },
-        include: { claim: true },
-      });
-
-      if (!document) {
-        res.status(404).json({ error: 'Document not found' });
-        return;
-      }
-
-      if (document.claim.patientId !== req.user!.id) {
-        res.status(403).json({ error: 'Access denied' });
-        return;
-      }
+      const document = req.resource;
 
       if (document.isSystemGenerated) {
         res.status(403).json({ error: 'System-generated documents cannot be deleted' });
