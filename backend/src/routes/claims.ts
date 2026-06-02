@@ -234,6 +234,12 @@ function computeSlaMeta(
  *     responses:
  *       200:
  *         description: Paginated list of claims
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/PaginatedResponse'
+ *       401:
+ *         description: Unauthorized
  */
 /** GET /claims — list claims */
 router.get(
@@ -390,6 +396,11 @@ router.get(
  *     responses:
  *       201:
  *         description: Draft claim created
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               description: Claim object with events, documents, and line items
  *       400:
  *         description: Validation error or coverage exceeded
  *       409:
@@ -568,58 +579,71 @@ router.post(
         ? data.lines.reduce((sum, l) => sum + l.billedAmount, 0)
         : undefined;
 
-      const claim = await prisma.claim.create({
-        data: {
-          claimNumber,
-          patientId: req.user!.id,
-          policyId: data.policyId,
-          type: data.type,
-          description: data.description,
-          incidentDate: data.incidentDate,
-          totalAmount: totalBilled ?? data.totalAmount,
-          totalBilled: totalBilled ?? null,
-          eligibleAmount,
-          deductible,
-          reimbursable,
-          status: 'DRAFT',
-          networkStatus,
-          fraudScore,
-          fraudFlags: JSON.stringify(fraudFlagsList),
-          diagnosisCodes: JSON.stringify(diagCodes),
-          planYearStart,
-          ...(data.providerId ? { providerId: data.providerId } : {}),
-        },
-        include: claimInclude,
-      });
-
-      if (data.lines && data.lines.length > 0) {
-        await prisma.claimLine.createMany({
-          data: data.lines.map((line, idx) => ({
-            claimId: claim.id,
-            lineNumber: idx + 1,
-            cptCode: line.cptCode,
-            modifier: line.modifier ?? null,
-            diagnosisPointers: JSON.stringify(line.diagnosisPointers),
-            units: line.units,
-            billedAmount: line.billedAmount,
-            adjudicationStatus: 'PENDING',
-          })),
+      // Multi-step operation wrapped in transaction: create claim, lines, event, and audit log
+      const claim = await prisma.$transaction(async (tx) => {
+        const newClaim = await tx.claim.create({
+          data: {
+            claimNumber,
+            patientId: req.user!.id,
+            policyId: data.policyId,
+            type: data.type,
+            description: data.description,
+            incidentDate: data.incidentDate,
+            totalAmount: totalBilled ?? data.totalAmount,
+            totalBilled: totalBilled ?? null,
+            eligibleAmount,
+            deductible,
+            reimbursable,
+            status: 'DRAFT',
+            networkStatus,
+            fraudScore,
+            fraudFlags: JSON.stringify(fraudFlagsList),
+            diagnosisCodes: JSON.stringify(diagCodes),
+            planYearStart,
+            ...(data.providerId ? { providerId: data.providerId } : {}),
+          },
         });
-      }
 
-      await prisma.claimEvent.create({
-        data: {
-          claimId: claim.id,
-          userId: req.user!.id,
-          action: 'CREATED',
-          toStatus: 'DRAFT',
-          note: 'Claim created as draft',
-        },
+        if (data.lines && data.lines.length > 0) {
+          await tx.claimLine.createMany({
+            data: data.lines.map((line, idx) => ({
+              claimId: newClaim.id,
+              lineNumber: idx + 1,
+              cptCode: line.cptCode,
+              modifier: line.modifier ?? null,
+              diagnosisPointers: JSON.stringify(line.diagnosisPointers),
+              units: line.units,
+              billedAmount: line.billedAmount,
+              adjudicationStatus: 'PENDING',
+            })),
+          });
+        }
+
+        await tx.claimEvent.create({
+          data: {
+            claimId: newClaim.id,
+            userId: req.user!.id,
+            action: 'CREATED',
+            toStatus: 'DRAFT',
+            note: 'Claim created as draft',
+          },
+        });
+
+        await tx.auditLog.create({
+          data: {
+            userId: req.user!.id,
+            action: 'CREATE_CLAIM',
+            resource: 'Claim',
+            resourceId: newClaim.id,
+            details: JSON.stringify({ claimNumber }),
+            ipAddress: req.ip ?? null,
+          },
+        });
+
+        return newClaim;
       });
 
-      await createAuditLog({ userId: req.user!.id, action: 'CREATE_CLAIM', resource: 'Claim', resourceId: claim.id, details: { claimNumber }, ipAddress: req.ip });
-
-      // Reload to include newly created lines
+      // Reload to include newly created lines and relations
       const claimWithLines = await prisma.claim.findUnique({ where: { id: claim.id }, include: claimInclude });
       res.status(201).json(parseDiagnosisCodes(claimWithLines!));
     } catch (err) {
@@ -1068,7 +1092,7 @@ router.delete(
       const claim = req.resource;
       if (claim.status !== 'DRAFT') { res.status(400).json({ error: 'Only DRAFT claims can be deleted' }); return; }
 
-      await prisma.claim.delete({ where: { id: claim.id } });
+      await prisma.claim.update({ where: { id: claim.id }, data: { deletedAt: new Date() } });
       await createAuditLog({ userId: req.user!.id, action: 'DELETE_CLAIM', resource: 'Claim', resourceId: claim.id, details: { claimNumber: claim.claimNumber }, ipAddress: req.ip });
 
       res.json({ message: 'Claim deleted successfully' });

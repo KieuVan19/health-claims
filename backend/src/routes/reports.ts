@@ -4,6 +4,7 @@ import { authenticate } from '../middleware/auth';
 import { requireRole } from '../middleware/roles';
 import { config } from '../config';
 import { getPaginationParams, createPaginatedResponse } from '../utils/pagination';
+import { parseDateRange } from '../utils/filters';
 import { CLAIM_STATUSES } from '../constants/enums';
 
 const router = Router();
@@ -83,18 +84,9 @@ router.get(
       };
 
       if (adjusterId) where['adjusterId'] = adjusterId;
-      if (startDate) {
-        where['createdAt'] = {
-          ...(typeof where['createdAt'] === 'object' && where['createdAt'] !== null ? where['createdAt'] as object : {}),
-          gte: new Date(startDate),
-        };
-      }
-      if (endDate) {
-        where['createdAt'] = {
-          ...(typeof where['createdAt'] === 'object' && where['createdAt'] !== null ? where['createdAt'] as object : {}),
-          lte: new Date(new Date(endDate).setHours(23, 59, 59, 999)),
-        };
-      }
+
+      const dateRange = parseDateRange(startDate, endDate);
+      if (dateRange) where['createdAt'] = dateRange;
 
       const claims = await prisma.claim.findMany({
         where,
