@@ -89,6 +89,9 @@ router.get(
       const searchWhere = buildSearchWhere(search, ['email', 'firstName', 'lastName']);
       if (searchWhere) where['OR'] = searchWhere.OR;
 
+      // Exclude soft-deleted users
+      where['deletedAt'] = null;
+
       const [total, users] = await Promise.all([
         prisma.user.count({ where }),
         prisma.user.findMany({
@@ -294,8 +297,8 @@ router.delete(
 
       const user = await prisma.user.update({
         where: { id: req.params['id'] },
-        data: { isActive: false },
-        select: { id: true, email: true, isActive: true },
+        data: { deletedAt: new Date(), deletedBy: req.user!.id, isActive: false },
+        select: { id: true, email: true, isActive: true, deletedAt: true },
       });
 
       await createAuditLog({ userId: req.user!.id, action: 'ADMIN_DEACTIVATE_USER', resource: 'User', resourceId: user.id, ipAddress: req.ip });
@@ -953,7 +956,7 @@ router.delete(
       const userPolicy = await prisma.userPolicy.findUnique({ where: { id } });
       if (!userPolicy) { res.status(404).json({ error: 'Assignment not found' }); return; }
 
-      await prisma.userPolicy.delete({ where: { id } });
+      await prisma.userPolicy.update({ where: { id }, data: { deletedAt: new Date(), deletedBy: req.user!.id } });
       await createAuditLog({
         userId: req.user!.id,
         action: 'REMOVE_USER_POLICY',

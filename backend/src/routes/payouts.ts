@@ -93,6 +93,9 @@ router.get(
         }
       }
 
+      // Exclude soft-deleted claims
+      where['deletedAt'] = null;
+
       const [total, claims] = await Promise.all([
         prisma.claim.count({ where }),
         prisma.claim.findMany({

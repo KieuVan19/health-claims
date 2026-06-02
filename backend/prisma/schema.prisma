@@ -21,6 +21,8 @@ model User {
   notificationPrefs  String    @default("{}")
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
+  deletedAt          DateTime?
+  deletedBy          String?
 
   patientClaims      Claim[]            @relation("PatientClaims")
   adjusterClaims     Claim[]            @relation("AdjusterClaims")
@@ -69,6 +71,7 @@ model UserPolicy {
   payerOrder   String   @default("PRIMARY")
   createdAt    DateTime @default(now())
   deletedAt    DateTime?
+  deletedBy    String?
 
   user         User     @relation(fields: [userId], references: [id])
   policy       Policy   @relation(fields: [policyId], references: [id])
@@ -122,6 +125,7 @@ model Claim {
   createdAt               DateTime  @default(now())
   updatedAt               DateTime  @updatedAt
   deletedAt               DateTime?
+  deletedBy               String?
 
   patient           User         @relation("PatientClaims", fields: [patientId], references: [id])
   adjuster          User?        @relation("AdjusterClaims", fields: [adjusterId], references: [id])
@@ -171,6 +175,7 @@ model Document {
   uploadedById       String?
   createdAt          DateTime @default(now())
   deletedAt          DateTime?
+  deletedBy          String?
 
   claim              Claim    @relation(fields: [claimId], references: [id], onDelete: Cascade)
   uploadedBy         User?    @relation(fields: [uploadedById], references: [id])
