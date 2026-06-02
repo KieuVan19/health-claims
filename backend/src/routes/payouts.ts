@@ -66,7 +66,7 @@ router.get(
       const {
         page = '1',
         limit = '20',
-        status = 'APPROVED',
+        status = CLAIM_STATUSES.APPROVED,
         from,
         to,
         search,
@@ -77,7 +77,7 @@ router.get(
       const skip = (pageNum - 1) * limitNum;
 
       const allowedStatuses = ['APPROVED', 'PARTIALLY_APPROVED', 'PAID'];
-      const queryStatus = (allowedStatuses as string[]).includes(status) ? status : 'APPROVED';
+      const queryStatus = (allowedStatuses as string[]).includes(status) ? status : CLAIM_STATUSES.APPROVED;
 
       const where: Record<string, unknown> = { status: queryStatus };
 
@@ -86,7 +86,7 @@ router.get(
 
       const dateFilter = parseDateRange(from, to);
       if (dateFilter) {
-        if (queryStatus === 'PAID') {
+        if (queryStatus === CLAIM_STATUSES.PAID) {
           where['payout'] = { paidAt: dateFilter };
         } else {
           where['updatedAt'] = dateFilter;
@@ -168,7 +168,7 @@ router.post(
         return;
       }
 
-      if (claim.status !== 'APPROVED') {
+      if (claim.status !== CLAIM_STATUSES.APPROVED) {
         res.status(400).json({ error: 'Only APPROVED claims can be paid' });
         return;
       }
@@ -190,7 +190,7 @@ router.post(
       const [updatedClaim, payout] = await Promise.all([
         prisma.claim.update({
           where: { id: claimId },
-          data: { status: 'PAID' },
+          data: { status: CLAIM_STATUSES.PAID },
           include: {
             patient: { select: { id: true, email: true, firstName: true, lastName: true } },
             policy: true,
@@ -210,9 +210,9 @@ router.post(
           data: {
             claimId,
             userId: req.user!.id,
-            action: 'PAID',
-            fromStatus: 'APPROVED',
-            toStatus: 'PAID',
+            action: CLAIM_STATUSES.PAID,
+            fromStatus: CLAIM_STATUSES.APPROVED,
+            toStatus: CLAIM_STATUSES.PAID,
             note: `Payment reference: ${paymentRef}`,
           },
         }),
@@ -288,7 +288,7 @@ router.post(
       const claims = await prisma.claim.findMany({
         where: {
           id: { in: claimIds },
-          status: 'APPROVED',
+          status: CLAIM_STATUSES.APPROVED,
         },
         include: { patient: true },
       });
@@ -326,7 +326,7 @@ router.post(
           await Promise.all([
             prisma.claim.update({
               where: { id: claim.id },
-              data: { status: 'PAID' },
+              data: { status: CLAIM_STATUSES.PAID },
             }),
             prisma.payout.create({
               data: {
@@ -342,9 +342,9 @@ router.post(
               data: {
                 claimId: claim.id,
                 userId: req.user!.id,
-                action: 'PAID',
-                fromStatus: 'APPROVED',
-                toStatus: 'PAID',
+                action: CLAIM_STATUSES.PAID,
+                fromStatus: CLAIM_STATUSES.APPROVED,
+                toStatus: CLAIM_STATUSES.PAID,
                 note: isBatch ? `Batch payment: ${paymentRef}` : `Payment reference: ${paymentRef}`,
               },
             }),
@@ -368,7 +368,7 @@ router.post(
 
           await sendClaimPaid(claim.patient.email, claim.claimNumber, netAmount, individualRef);
 
-          results.push({ claimId: claim.id, claimNumber: claim.claimNumber, amount: netAmount, status: 'PAID' });
+          results.push({ claimId: claim.id, claimNumber: claim.claimNumber, amount: netAmount, status: CLAIM_STATUSES.PAID });
         } catch (e) {
           errors.push({ claimId: claim.id, error: e instanceof Error ? e.message : 'Unknown error' });
         }
@@ -422,7 +422,7 @@ router.get(
     try {
       const { from, to } = req.query as Record<string, string>;
 
-      const where: Record<string, unknown> = { status: 'PAID' };
+      const where: Record<string, unknown> = { status: CLAIM_STATUSES.PAID };
       const dateFilter = parseDateRange(from, to);
       if (dateFilter) {
         where['payout'] = { paidAt: dateFilter };
@@ -547,7 +547,7 @@ router.get(
           }),
           prisma.claim.groupBy({
             by: ['type'],
-            where: { status: 'PAID', payout: { paidAt: { gte: monthStart, lte: monthEnd } } },
+            where: { status: CLAIM_STATUSES.PAID, payout: { paidAt: { gte: monthStart, lte: monthEnd } } },
             _sum: { reimbursable: true },
           }),
         ]);
@@ -572,8 +572,8 @@ router.get(
 
       // Summary stats
       const [totalPendingCount, totalPendingAmount, allTimePaid] = await Promise.all([
-        prisma.claim.count({ where: { status: 'APPROVED' } }),
-        prisma.claim.aggregate({ where: { status: 'APPROVED' }, _sum: { reimbursable: true } }),
+        prisma.claim.count({ where: { status: CLAIM_STATUSES.APPROVED } }),
+        prisma.claim.aggregate({ where: { status: CLAIM_STATUSES.APPROVED }, _sum: { reimbursable: true } }),
         prisma.payout.aggregate({ _sum: { amount: true }, _count: { id: true } }),
       ]);
 
@@ -630,7 +630,7 @@ router.get(
             },
           },
           events: {
-            where: { action: 'PAID' },
+            where: { action: CLAIM_STATUSES.PAID },
             orderBy: { createdAt: 'desc' },
             take: 1,
           },

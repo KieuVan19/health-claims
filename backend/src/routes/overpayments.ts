@@ -8,11 +8,11 @@ import { createAuditLog } from '../utils/audit';
 import { createNotification } from '../utils/notification';
 import { createPaginatedResponse } from '../utils/pagination';
 import { parseDateRange } from '../utils/filters';
-import { OVERPAYMENT_REASONS, OVERPAYMENT_REASONS_ARRAY, OVERPAYMENT_STATUSES, OVERPAYMENT_STATUSES_ARRAY } from '../constants/enums';
+import { OVERPAYMENT_REASONS, OVERPAYMENT_REASONS_ARRAY, OVERPAYMENT_STATUSES, OVERPAYMENT_STATUSES_ARRAY, USER_ROLES, CLAIM_STATUSES } from '../constants/enums';
 
 const router = Router();
 
-router.use(authenticate, requireRole('FINANCE_OFFICER', 'ADMIN'));
+router.use(authenticate, requireRole(USER_ROLES.FINANCE_OFFICER, USER_ROLES.ADMIN));
 
 // ─── Schemas ─────────────────────────────────────────────────────────────────
 
@@ -144,7 +144,7 @@ router.post(
         return;
       }
 
-      if (claim.status !== 'PAID') {
+      if (claim.status !== CLAIM_STATUSES.PAID) {
         res.status(400).json({ error: 'Only PAID claims can be flagged as overpaid' });
         return;
       }

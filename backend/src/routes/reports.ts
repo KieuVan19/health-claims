@@ -5,11 +5,11 @@ import { requireRole } from '../middleware/roles';
 import { config } from '../config';
 import { getPaginationParams, createPaginatedResponse } from '../utils/pagination';
 import { parseDateRange } from '../utils/filters';
-import { CLAIM_STATUSES } from '../constants/enums';
+import { CLAIM_STATUSES, USER_ROLES } from '../constants/enums';
 
 const router = Router();
 
-router.use(authenticate, requireRole('ADMIN', 'FINANCE_OFFICER'));
+router.use(authenticate, requireRole(USER_ROLES.ADMIN, USER_ROLES.FINANCE_OFFICER));
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 

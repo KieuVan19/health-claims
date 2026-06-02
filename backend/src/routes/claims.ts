@@ -274,12 +274,12 @@ router.get(
         where['originalAdjudicatorId'] = userId;
       } else if (role === 'ADJUSTER' && history === 'true') {
         where['adjusterId'] = userId;
-        where['status'] = { in: ['APPROVED', 'PARTIALLY_APPROVED', 'REJECTED', 'PAID', 'WITHDRAWN', 'APPEAL_DENIED'] };
+        where['status'] = { in: [CLAIM_STATUSES.APPROVED, CLAIM_STATUSES.PARTIALLY_APPROVED, CLAIM_STATUSES.REJECTED, CLAIM_STATUSES.PAID, CLAIM_STATUSES.WITHDRAWN, CLAIM_STATUSES.APPEAL_DENIED] };
       } else if (role === 'ADJUSTER' && unassigned === 'true') {
         // Show claims with no auto-assignment and no active adjuster
         where['adjusterId'] = null;
         where['assignedAdjusterId'] = null;
-        where['status'] = { in: ['SUBMITTED', 'APPEAL_PENDING'] };
+        where['status'] = { in: [CLAIM_STATUSES.SUBMITTED, CLAIM_STATUSES.APPEAL_PENDING] };
         // Exclude appeal claims that this adjuster originally rejected — they cannot self-assign
         where['AND'] = [
           { OR: [{ originalAdjudicatorId: null }, { originalAdjudicatorId: { not: userId } }] },
@@ -291,12 +291,12 @@ router.get(
           where['status'] = status;
         } else {
           // Default: only claims actively being processed
-          where['status'] = { in: ['SUBMITTED', 'UNDER_REVIEW', 'INFO_REQUESTED', 'INFO_RESPONDED', 'APPEAL_PENDING'] };
+          where['status'] = { in: [CLAIM_STATUSES.SUBMITTED, CLAIM_STATUSES.UNDER_REVIEW, CLAIM_STATUSES.INFO_REQUESTED, CLAIM_STATUSES.INFO_RESPONDED, CLAIM_STATUSES.APPEAL_PENDING] };
         }
       } else if (status) {
         where['status'] = status;
       } else if (role !== 'PATIENT') {
-        where['status'] = { not: 'DRAFT' };
+        where['status'] = { not: CLAIM_STATUSES.DRAFT };
       }
       if (type) where['type'] = type;
 
@@ -339,7 +339,7 @@ router.get(
       const claimIds = claims.map((c) => c.id);
       const submittedEvents = claimIds.length > 0
         ? await prisma.claimEvent.findMany({
-            where: { claimId: { in: claimIds }, toStatus: 'SUBMITTED' },
+            where: { claimId: { in: claimIds }, toStatus: CLAIM_STATUSES.SUBMITTED },
             orderBy: { createdAt: 'asc' },
             select: { claimId: true, createdAt: true },
           })
@@ -438,7 +438,7 @@ router.post(
         where: {
           patientId: req.user!.id,
           policyId: data.policyId,
-          status: { in: ['APPROVED', 'PARTIALLY_APPROVED', 'PAID'] },
+          status: { in: [CLAIM_STATUSES.APPROVED, CLAIM_STATUSES.PARTIALLY_APPROVED, CLAIM_STATUSES.PAID] },
           createdAt: { gte: yearStart },
         },
         _sum: { totalAmount: true },
@@ -464,7 +464,7 @@ router.post(
             patientId: req.user!.id,
             policyId: data.policyId,
             type: data.type,
-            status: { in: ['APPROVED', 'PARTIALLY_APPROVED', 'PAID'] },
+            status: { in: [CLAIM_STATUSES.APPROVED, CLAIM_STATUSES.PARTIALLY_APPROVED, CLAIM_STATUSES.PAID] },
             createdAt: { gte: yearStart },
           },
           _sum: { totalAmount: true },
@@ -491,7 +491,7 @@ router.post(
           type: data.type,
           incidentDate: { gte: oneDayAgo, lte: oneDayAfter },
           totalAmount: data.totalAmount,
-          status: { notIn: ['REJECTED', 'WITHDRAWN'] },
+          status: { notIn: [CLAIM_STATUSES.REJECTED, CLAIM_STATUSES.WITHDRAWN] },
         },
         select: { claimNumber: true },
       });
@@ -539,7 +539,7 @@ router.post(
             patientId: req.user!.id,
             type: data.type,
             incidentDate: { gte: monthStart, lte: monthEnd },
-            status: { notIn: ['REJECTED', 'WITHDRAWN'] },
+            status: { notIn: [CLAIM_STATUSES.REJECTED, CLAIM_STATUSES.WITHDRAWN] },
           },
         }),
       ]);
@@ -594,7 +594,7 @@ router.post(
             eligibleAmount,
             deductible,
             reimbursable,
-            status: 'DRAFT',
+            status: CLAIM_STATUSES.DRAFT,
             networkStatus,
             fraudScore,
             fraudFlags: JSON.stringify(fraudFlagsList),
@@ -624,7 +624,7 @@ router.post(
             claimId: newClaim.id,
             userId: req.user!.id,
             action: 'CREATED',
-            toStatus: 'DRAFT',
+            toStatus: CLAIM_STATUSES.DRAFT,
             note: 'Claim created as draft',
           },
         });
@@ -685,8 +685,8 @@ router.get(
       logRead(req.user!.id, 'Claim', claim.id, req, isOwn);
 
       // Derive submittedAt and ack SLA from events already included in the claim
-      const submittedEvent = claim.events.find((e: any) => e.toStatus === 'SUBMITTED');
-      const underReviewEvent = claim.events.find((e: any) => e.toStatus === 'UNDER_REVIEW');
+      const submittedEvent = claim.events.find((e) => e.toStatus === CLAIM_STATUSES.SUBMITTED);
+      const underReviewEvent = claim.events.find((e) => e.toStatus === CLAIM_STATUSES.UNDER_REVIEW);
       const submittedAt = submittedEvent?.createdAt ?? null;
       const ackDays = (submittedAt && underReviewEvent)
         ? Math.floor((underReviewEvent.createdAt.getTime() - submittedAt.getTime()) / (1000 * 60 * 60 * 24))
@@ -737,7 +737,7 @@ router.get(
               patientId: claim.patientId,
               policyId: claim.policyId,
               type,
-              status: { in: ['APPROVED', 'PARTIALLY_APPROVED', 'PAID'] },
+              status: { in: [CLAIM_STATUSES.APPROVED, CLAIM_STATUSES.PARTIALLY_APPROVED, CLAIM_STATUSES.PAID] },
               createdAt: { gte: yearStart },
               NOT: { id: claim.id },
             },
@@ -871,7 +871,7 @@ router.get(
       }
       pdfDoc.moveDown(1);
 
-      if (claim.status === 'REJECTED' && claim.adjusterNotes) {
+      if (claim.status === CLAIM_STATUSES.REJECTED && claim.adjusterNotes) {
         pdfDoc.fontSize(12).font('Helvetica-Bold').fillColor('#cc0000').text('Denial Information');
         pdfDoc.fontSize(10).font('Helvetica').fillColor('black');
         pdfDoc.text(`Denial Reason: ${claim.adjusterNotes}`);
@@ -897,8 +897,8 @@ router.get(
       const ded = claim.deductible ?? 0;
       const reimb = claim.reimbursable ?? 0;
       const copayAmount = Math.max(0, eligible - ded - reimb);
-      const insurancePaid = claim.status === 'REJECTED' ? 0 : (claim.adjustedAmount ?? reimb);
-      const patientResponsibility = claim.status === 'REJECTED' ? claim.totalAmount : Math.max(0, claim.totalAmount - insurancePaid);
+      const insurancePaid = claim.status === CLAIM_STATUSES.REJECTED ? 0 : (claim.adjustedAmount ?? reimb);
+      const patientResponsibility = claim.status === CLAIM_STATUSES.REJECTED ? claim.totalAmount : Math.max(0, claim.totalAmount - insurancePaid);
 
       const fallbackCopayLabel = claim.networkStatus === 'OUT' ? ` OON (${fallbackCopayRate}%)` : ` (${fallbackCopayRate}%)`;
       drawRow('Billed Amount:', `$${claim.totalAmount.toFixed(2)}`);
@@ -981,7 +981,7 @@ router.put(
     try {
       const claim = req.resource;
 
-      if (claim.status !== 'DRAFT') { res.status(400).json({ error: 'Only DRAFT claims can be updated' }); return; }
+      if (claim.status !== CLAIM_STATUSES.DRAFT) { res.status(400).json({ error: 'Only DRAFT claims can be updated' }); return; }
 
       const data = req.body as z.infer<typeof updateClaimSchema>;
 
@@ -1075,7 +1075,7 @@ router.delete(
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const claim = req.resource;
-      if (claim.status !== 'DRAFT') { res.status(400).json({ error: 'Only DRAFT claims can be deleted' }); return; }
+      if (claim.status !== CLAIM_STATUSES.DRAFT) { res.status(400).json({ error: 'Only DRAFT claims can be deleted' }); return; }
 
       await prisma.claim.update({ where: { id: claim.id }, data: { deletedAt: new Date() } });
       await createAuditLog({ userId: req.user!.id, action: 'DELETE_CLAIM', resource: 'Claim', resourceId: claim.id, details: { claimNumber: claim.claimNumber }, ipAddress: req.ip });
@@ -1098,7 +1098,7 @@ const initiateAppealSchema = z.object({
 });
 
 const resolveAppealSchema = z.object({
-  resolution: z.enum(['APPEAL_APPROVED', 'APPEAL_DENIED']),
+  resolution: z.enum(['APPEAL_APPROVED', CLAIM_STATUSES.APPEAL_DENIED]),
   notes: z.string().optional(),
 });
 
@@ -1157,16 +1157,16 @@ const claimActionSchema = z.discriminatedUnion('action', [
 function deriveClaimStatusFromLines(
   lines: { adjudicationStatus: string }[],
 ): 'APPROVED' | 'REJECTED' | 'PARTIALLY_APPROVED' | 'UNDER_REVIEW' {
-  if (lines.length === 0) return 'UNDER_REVIEW';
+  if (lines.length === 0) return CLAIM_STATUSES.UNDER_REVIEW;
   const statuses = lines.map((l) => l.adjudicationStatus);
-  const allApproved = statuses.every((s) => s === 'APPROVED');
+  const allApproved = statuses.every((s) => s === CLAIM_STATUSES.APPROVED);
   const allDenied = statuses.every((s) => s === 'DENIED');
   const anyPending = statuses.some((s) => s === 'PENDING');
 
-  if (anyPending) return 'UNDER_REVIEW';
-  if (allApproved) return 'APPROVED';
-  if (allDenied) return 'REJECTED';
-  return 'PARTIALLY_APPROVED';
+  if (anyPending) return CLAIM_STATUSES.UNDER_REVIEW;
+  if (allApproved) return CLAIM_STATUSES.APPROVED;
+  if (allDenied) return CLAIM_STATUSES.REJECTED;
+  return CLAIM_STATUSES.PARTIALLY_APPROVED;
 }
 
 // ─── Unified Action Dispatcher ───────────────────────────────────────────────
@@ -1226,7 +1226,7 @@ router.post(
             res.status(403).json({ error: 'Only patients can submit claims' });
             return;
           }
-          if (claim.status !== 'DRAFT') {
+          if (claim.status !== CLAIM_STATUSES.DRAFT) {
             res.status(400).json({ error: 'Only DRAFT claims can be submitted' });
             return;
           }
@@ -1259,12 +1259,12 @@ router.post(
 
           result = await prisma.claim.update({
             where: { id: claim.id },
-            data: { status: 'SUBMITTED', cobFlag },
+            data: { status: CLAIM_STATUSES.SUBMITTED, cobFlag },
             include: claimInclude,
           });
 
           await prisma.claimEvent.create({
-            data: { claimId: claim.id, userId, action: 'SUBMITTED', fromStatus: 'DRAFT', toStatus: 'SUBMITTED' },
+            data: { claimId: claim.id, userId, action: CLAIM_STATUSES.SUBMITTED, fromStatus: CLAIM_STATUSES.DRAFT, toStatus: CLAIM_STATUSES.SUBMITTED },
           });
 
           autoAssignClaim(claim.id, claim.claimNumber, userId, claim.provider?.specialty).catch((err: unknown) => {
@@ -1314,7 +1314,7 @@ router.post(
           const { reason } = actionReq.payload as z.infer<typeof withdrawSchema>;
           result = await prisma.claim.update({
             where: { id: claim.id },
-            data: { status: 'WITHDRAWN', adjusterNotes: reason ? `Withdrawn by patient: ${reason}` : 'Withdrawn by patient' },
+            data: { status: CLAIM_STATUSES.WITHDRAWN, adjusterNotes: reason ? `Withdrawn by patient: ${reason}` : 'Withdrawn by patient' },
             include: claimInclude,
           });
 
@@ -1322,9 +1322,9 @@ router.post(
             data: {
               claimId: claim.id,
               userId,
-              action: 'WITHDRAWN',
+              action: CLAIM_STATUSES.WITHDRAWN,
               fromStatus: claim.status,
-              toStatus: 'WITHDRAWN',
+              toStatus: CLAIM_STATUSES.WITHDRAWN,
               note: reason || 'Withdrawn by patient',
             },
           });
@@ -1359,7 +1359,7 @@ router.post(
           }
 
           const fromStatus = claim.status;
-          const toStatus = 'UNDER_REVIEW';
+          const toStatus = CLAIM_STATUSES.UNDER_REVIEW;
 
           result = await prisma.claim.update({
             where: { id: claim.id },
@@ -1436,7 +1436,7 @@ router.post(
               ? `Eligible amount overridden to $${eligibleAmountOverride.toFixed(2)} (calculated: $${calculatedEligible.toFixed(2)}). ${notes ?? ''}`.trim()
               : notes;
 
-          const finalStatus = reimbursable === 0 ? 'PAID' : 'APPROVED';
+          const finalStatus = reimbursable === 0 ? CLAIM_STATUSES.PAID : CLAIM_STATUSES.APPROVED;
 
           result = await prisma.claim.update({
             where: { id: claim.id },
@@ -1452,7 +1452,7 @@ router.post(
           });
 
           await prisma.claimEvent.create({
-            data: { claimId: claim.id, userId, action: 'APPROVED', fromStatus: claim.status, toStatus: finalStatus, note: eventNote },
+            data: { claimId: claim.id, userId, action: CLAIM_STATUSES.APPROVED, fromStatus: claim.status, toStatus: finalStatus, note: eventNote },
           });
 
           if (reimbursable === 0) {
@@ -1494,7 +1494,7 @@ router.post(
 
           await sendClaimApproved(claim.patient.email, claim.claimNumber, reimbursable);
 
-          const wasAppealed = claim.status === 'APPEAL_PENDING' || !!(await prisma.claimEvent.findFirst({ where: { claimId: claim.id, action: 'APPEAL_RESOLVED' } }));
+          const wasAppealed = claim.status === CLAIM_STATUSES.APPEAL_PENDING || !!(await prisma.claimEvent.findFirst({ where: { claimId: claim.id, action: 'APPEAL_RESOLVED' } }));
           generateAndStoreEob(claim.id, userId, wasAppealed).catch((err: unknown) => {
             console.error('[EOB] Failed to generate EOB for claim', claim.id, err);
           });
@@ -1514,12 +1514,12 @@ router.post(
           const { notes } = actionReq.payload as z.infer<typeof rejectClaimSchema>;
           result = await prisma.claim.update({
             where: { id: claim.id },
-            data: { status: 'REJECTED', adjusterNotes: notes },
+            data: { status: CLAIM_STATUSES.REJECTED, adjusterNotes: notes },
             include: claimInclude,
           });
 
           await prisma.claimEvent.create({
-            data: { claimId: claim.id, userId, action: 'REJECTED', fromStatus: claim.status, toStatus: 'REJECTED', note: notes },
+            data: { claimId: claim.id, userId, action: CLAIM_STATUSES.REJECTED, fromStatus: claim.status, toStatus: CLAIM_STATUSES.REJECTED, note: notes },
           });
 
           await createNotification({
@@ -1547,10 +1547,10 @@ router.post(
 
           const { message } = actionReq.payload as z.infer<typeof requestInfoSchema>;
           const [updated] = await Promise.all([
-            prisma.claim.update({ where: { id: claim.id }, data: { status: 'INFO_REQUESTED' }, include: claimInclude }),
+            prisma.claim.update({ where: { id: claim.id }, data: { status: CLAIM_STATUSES.INFO_REQUESTED }, include: claimInclude }),
             prisma.infoRequest.create({ data: { claimId: claim.id, fromId: userId, message } }),
             prisma.claimEvent.create({
-              data: { claimId: claim.id, userId, action: 'INFO_REQUESTED', fromStatus: claim.status, toStatus: 'INFO_REQUESTED', note: message },
+              data: { claimId: claim.id, userId, action: CLAIM_STATUSES.INFO_REQUESTED, fromStatus: claim.status, toStatus: CLAIM_STATUSES.INFO_REQUESTED, note: message },
             }),
           ]);
 
@@ -1595,10 +1595,10 @@ router.post(
 
           await prisma.infoRequest.update({ where: { id: infoRequestId }, data: { response: response ?? '', respondedAt: new Date() } });
 
-          result = await prisma.claim.update({ where: { id: claim.id }, data: { status: 'INFO_RESPONDED' }, include: claimInclude });
+          result = await prisma.claim.update({ where: { id: claim.id }, data: { status: CLAIM_STATUSES.INFO_RESPONDED }, include: claimInclude });
 
           await prisma.claimEvent.create({
-            data: { claimId: claim.id, userId, action: 'INFO_RESPONDED', fromStatus: claim.status, toStatus: 'INFO_RESPONDED', note: response },
+            data: { claimId: claim.id, userId, action: CLAIM_STATUSES.INFO_RESPONDED, fromStatus: claim.status, toStatus: CLAIM_STATUSES.INFO_RESPONDED, note: response },
           });
 
           if (claim.adjusterId) {
@@ -1623,19 +1623,19 @@ router.post(
             res.status(403).json({ error: 'Access denied' });
             return;
           }
-          if (claim.status !== 'REJECTED') {
+          if (claim.status !== CLAIM_STATUSES.REJECTED) {
             res.status(400).json({ error: 'Only REJECTED claims can be resubmitted' });
             return;
           }
 
           result = await prisma.claim.update({
             where: { id: claim.id },
-            data: { status: 'SUBMITTED', adjusterId: null },
+            data: { status: CLAIM_STATUSES.SUBMITTED, adjusterId: null },
             include: claimInclude,
           });
 
           await prisma.claimEvent.create({
-            data: { claimId: claim.id, userId, action: 'RESUBMITTED', fromStatus: 'REJECTED', toStatus: 'SUBMITTED' },
+            data: { claimId: claim.id, userId, action: 'RESUBMITTED', fromStatus: CLAIM_STATUSES.REJECTED, toStatus: CLAIM_STATUSES.SUBMITTED },
           });
 
           autoAssignClaim(claim.id, claim.claimNumber, userId, claim.provider?.specialty).catch((err: unknown) => {
@@ -1672,7 +1672,7 @@ router.post(
             res.status(403).json({ error: 'Only admins can override filing deadlines' });
             return;
           }
-          if (claim.status !== 'DRAFT') {
+          if (claim.status !== CLAIM_STATUSES.DRAFT) {
             res.status(400).json({ error: 'Filing deadline override can only be applied to DRAFT claims' });
             return;
           }
@@ -1716,14 +1716,14 @@ router.post(
             res.status(403).json({ error: 'Access denied' });
             return;
           }
-          if (claim.status !== 'REJECTED') {
+          if (claim.status !== CLAIM_STATUSES.REJECTED) {
             res.status(400).json({ error: 'Only REJECTED claims can be appealed' });
             return;
           }
 
           const { reason } = actionReq.payload as z.infer<typeof initiateAppealSchema>;
           const rejectionEvent = await prisma.claimEvent.findFirst({
-            where: { claimId: claim.id, action: 'REJECTED' },
+            where: { claimId: claim.id, action: CLAIM_STATUSES.REJECTED },
             orderBy: { createdAt: 'desc' },
           });
           const originalAdjudicatorId = rejectionEvent?.userId ?? claim.adjusterId;
@@ -1731,7 +1731,7 @@ router.post(
           result = await prisma.claim.update({
             where: { id: claim.id },
             data: {
-              status: 'APPEAL_PENDING',
+              status: CLAIM_STATUSES.APPEAL_PENDING,
               appealReason: reason,
               originalAdjudicatorId: originalAdjudicatorId ?? undefined,
               adjusterId: null,
@@ -1744,8 +1744,8 @@ router.post(
               claimId: claim.id,
               userId,
               action: 'APPEAL_INITIATED',
-              fromStatus: 'REJECTED',
-              toStatus: 'APPEAL_PENDING',
+              fromStatus: CLAIM_STATUSES.REJECTED,
+              toStatus: CLAIM_STATUSES.APPEAL_PENDING,
               note: reason,
             },
           });
@@ -1796,7 +1796,7 @@ router.post(
             res.status(403).json({ error: 'Only adjusters and admins can assign appeals' });
             return;
           }
-          if (claim.status !== 'APPEAL_PENDING') {
+          if (claim.status !== CLAIM_STATUSES.APPEAL_PENDING) {
             res.status(400).json({ error: 'Claim must be in APPEAL_PENDING status to assign an appeal adjudicator' });
             return;
           }
@@ -1826,8 +1826,8 @@ router.post(
               claimId: claim.id,
               userId,
               action: 'ASSIGNED',
-              fromStatus: 'APPEAL_PENDING',
-              toStatus: 'APPEAL_PENDING',
+              fromStatus: CLAIM_STATUSES.APPEAL_PENDING,
+              toStatus: CLAIM_STATUSES.APPEAL_PENDING,
               note: `Appeal assigned to ${adjuster.firstName} ${adjuster.lastName}`,
             },
           });
@@ -1850,7 +1850,7 @@ router.post(
             res.status(403).json({ error: 'Only adjusters can resolve appeals' });
             return;
           }
-          if (claim.status !== 'APPEAL_PENDING') {
+          if (claim.status !== CLAIM_STATUSES.APPEAL_PENDING) {
             res.status(400).json({ error: 'Claim must be in APPEAL_PENDING status to resolve an appeal' });
             return;
           }
@@ -1861,7 +1861,7 @@ router.post(
           }
 
           const { resolution, notes } = actionReq.payload as z.infer<typeof resolveAppealSchema>;
-          const toStatus = resolution === 'APPEAL_APPROVED' ? 'UNDER_REVIEW' : 'APPEAL_DENIED';
+          const toStatus = resolution === 'APPEAL_APPROVED' ? CLAIM_STATUSES.UNDER_REVIEW : CLAIM_STATUSES.APPEAL_DENIED;
 
           result = await prisma.claim.update({
             where: { id: claim.id },
@@ -1877,7 +1877,7 @@ router.post(
               claimId: claim.id,
               userId,
               action: 'APPEAL_RESOLVED',
-              fromStatus: 'APPEAL_PENDING',
+              fromStatus: CLAIM_STATUSES.APPEAL_PENDING,
               toStatus,
               note: notes,
             },
@@ -1957,7 +1957,7 @@ router.post(
           }
 
           const { secondaryPolicyId, notes: cobNotes } = actionReq.payload as z.infer<typeof initiateSecondarySchema>;
-          const primaryPaid = claim.status === 'PAID' && (await prisma.payout.findFirst({ where: { claimId: claim.id } }));
+          const primaryPaid = claim.status === CLAIM_STATUSES.PAID && (await prisma.payout.findFirst({ where: { claimId: claim.id } }));
           const externalPrimaryEntered = !!claim.cobDetail && claim.cobDetail.primaryPaidAmount !== undefined && claim.cobDetail.primaryPaidAmount !== null;
 
           if (!primaryPaid && !externalPrimaryEntered) {
@@ -2026,7 +2026,7 @@ router.post(
               eligibleAmount,
               deductible,
               reimbursable,
-              status: 'SUBMITTED',
+              status: CLAIM_STATUSES.SUBMITTED,
               networkStatus: claim.networkStatus ?? 'IN',
               cobFlag: true,
               planYearStart,
@@ -2044,9 +2044,9 @@ router.post(
             data: {
               claimId: secondaryClaim.id,
               userId,
-              action: 'SUBMITTED',
-              fromStatus: 'DRAFT',
-              toStatus: 'SUBMITTED',
+              action: CLAIM_STATUSES.SUBMITTED,
+              fromStatus: CLAIM_STATUSES.DRAFT,
+              toStatus: CLAIM_STATUSES.SUBMITTED,
               note: `COB secondary claim initiated from primary claim ${claim.claimNumber}`,
             },
           });
@@ -2073,7 +2073,7 @@ router.post(
 
           await prisma.claim.update({
             where: { id: claim.id },
-            data: { assignedAdjusterId: adjusterId, status: 'UNDER_REVIEW' },
+            data: { assignedAdjusterId: adjusterId, status: CLAIM_STATUSES.UNDER_REVIEW },
           });
 
           await prisma.claimEvent.create({
@@ -2082,7 +2082,7 @@ router.post(
               userId,
               action: 'REASSIGNED',
               fromStatus: claim.status,
-              toStatus: 'UNDER_REVIEW',
+              toStatus: CLAIM_STATUSES.UNDER_REVIEW,
               note: `Manually reassigned to ${adjuster.firstName} ${adjuster.lastName} by admin`,
             },
           });
@@ -2143,11 +2143,11 @@ router.post(
             return;
           }
 
-          if (adjudicationStatus === 'APPROVED') {
+          if (adjudicationStatus === CLAIM_STATUSES.APPROVED) {
             const resolvedAllowed = allowedAmount ?? line.billedAmount;
             await prisma.claimLine.update({
               where: { id: line.id },
-              data: { adjudicationStatus: 'APPROVED', allowedAmount: resolvedAllowed, adjudicatorNote: adjudicatorNote ?? null },
+              data: { adjudicationStatus: CLAIM_STATUSES.APPROVED, allowedAmount: resolvedAllowed, adjudicatorNote: adjudicatorNote ?? null },
             });
           } else {
             await prisma.claimLine.update({
@@ -2167,7 +2167,7 @@ router.post(
           });
 
           const totalAllowed = updatedLines
-            .filter((l) => l.adjudicationStatus === 'APPROVED' || l.adjudicationStatus === 'REDUCED')
+            .filter((l) => l.adjudicationStatus === CLAIM_STATUSES.APPROVED || l.adjudicationStatus === 'REDUCED')
             .reduce((sum, l) => sum + (l.allowedAmount ?? 0), 0);
 
           const newClaimStatus = deriveClaimStatusFromLines(updatedLines);
@@ -2176,7 +2176,7 @@ router.post(
             totalAllowed,
           };
 
-          if (newClaimStatus !== 'UNDER_REVIEW') {
+          if (newClaimStatus !== CLAIM_STATUSES.UNDER_REVIEW) {
             const amountForElig = totalAllowed > 0 ? totalAllowed : 0;
             const planYearStart = claim.planYearStart ?? new Date(new Date().getFullYear(), 0, 1);
             const claimNetworkStatus = (claim.networkStatus as 'IN' | 'OUT') ?? 'IN';

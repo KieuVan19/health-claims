@@ -8,12 +8,12 @@ import { validate } from '../middleware/validate';
 import { createAuditLog, logRead } from '../utils/audit';
 import { createPaginatedResponse } from '../utils/pagination';
 import { buildSearchWhere, parseDateRange } from '../utils/filters';
-import { USER_ROLES, USER_ROLES_ARRAY } from '../constants/enums';
+import { USER_ROLES, USER_ROLES_ARRAY, CLAIM_STATUSES } from '../constants/enums';
 
 const router = Router();
 
 // All admin routes require authentication + ADMIN role
-router.use(authenticate, requireRole('ADMIN'));
+router.use(authenticate, requireRole(USER_ROLES.ADMIN));
 
 // ─── Schemas ─────────────────────────────────────────────────────────────────
 
@@ -453,7 +453,7 @@ router.get(
           ...(hasFilter ? { where: dateFilter } : {}),
         }),
         prisma.claim.aggregate({
-          where: { status: { in: ['APPROVED', 'PAID'] }, ...dateFilter },
+          where: { status: { in: [CLAIM_STATUSES.APPROVED, CLAIM_STATUSES.PAID] }, ...dateFilter },
           _sum: { reimbursable: true, totalAmount: true },
         }),
         prisma.claim.findMany({
@@ -604,12 +604,12 @@ router.get(
         recentActivity,
       ] = await Promise.all([
         prisma.user.count({ where: { isActive: true } }),
-        prisma.claim.count({ where: { status: { in: ['SUBMITTED', 'UNDER_REVIEW', 'INFO_REQUESTED'] }, ...dateFilter } }),
-        prisma.claim.count({ where: { status: 'APPROVED', ...dateFilter } }),
-        prisma.claim.aggregate({ where: { status: 'PAID', ...dateFilter }, _sum: { reimbursable: true } }),
+        prisma.claim.count({ where: { status: { in: [CLAIM_STATUSES.SUBMITTED, 'UNDER_REVIEW', 'INFO_REQUESTED'] }, ...dateFilter } }),
+        prisma.claim.count({ where: { status: CLAIM_STATUSES.APPROVED, ...dateFilter } }),
+        prisma.claim.aggregate({ where: { status: CLAIM_STATUSES.PAID, ...dateFilter }, _sum: { reimbursable: true } }),
         prisma.policy.count({ where: { isActive: true } }),
-        prisma.user.count({ where: { role: 'PATIENT', isActive: true } }),
-        prisma.user.count({ where: { role: 'ADJUSTER', isActive: true } }),
+        prisma.user.count({ where: { role: USER_ROLES.PATIENT, isActive: true } }),
+        prisma.user.count({ where: { role: USER_ROLES.ADJUSTER, isActive: true } }),
         prisma.auditLog.findMany({
           take: 8,
           orderBy: { createdAt: 'desc' },
@@ -655,7 +655,7 @@ router.get(
   async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const adjusters = await prisma.user.findMany({
-        where: { role: 'ADJUSTER', isActive: true },
+        where: { role: USER_ROLES.ADJUSTER, isActive: true },
         select: { id: true, firstName: true, lastName: true, email: true },
       });
 
@@ -665,20 +665,20 @@ router.get(
             prisma.claim.count({
               where: {
                 OR: [{ assignedAdjusterId: adj.id }, { adjusterId: adj.id }],
-                status: { in: ['SUBMITTED', 'UNDER_REVIEW', 'INFO_REQUESTED', 'INFO_RESPONDED', 'APPEAL_PENDING'] },
+                status: { in: [CLAIM_STATUSES.SUBMITTED, 'UNDER_REVIEW', 'INFO_REQUESTED', 'INFO_RESPONDED', 'APPEAL_PENDING'] },
               },
             }),
             prisma.claim.count({
               where: {
                 adjusterId: adj.id,
-                status: { in: ['APPROVED', 'REJECTED', 'PAID'] },
+                status: { in: [CLAIM_STATUSES.APPROVED, CLAIM_STATUSES.REJECTED, CLAIM_STATUSES.PAID] },
                 updatedAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
               },
             }),
-            prisma.claim.count({ where: { adjusterId: adj.id, status: { in: ['APPROVED', 'PAID'] } } }),
-            prisma.claim.count({ where: { adjusterId: adj.id, status: 'REJECTED' } }),
+            prisma.claim.count({ where: { adjusterId: adj.id, status: { in: [CLAIM_STATUSES.APPROVED, CLAIM_STATUSES.PAID] } } }),
+            prisma.claim.count({ where: { adjusterId: adj.id, status: CLAIM_STATUSES.REJECTED } }),
             prisma.claim.findMany({
-              where: { adjusterId: adj.id, status: { in: ['APPROVED', 'PAID'] } },
+              where: { adjusterId: adj.id, status: { in: [CLAIM_STATUSES.APPROVED, CLAIM_STATUSES.PAID] } },
               select: { id: true },
               take: 50,
               orderBy: { updatedAt: 'desc' },
@@ -690,7 +690,7 @@ router.get(
             const events = await prisma.claimEvent.findMany({
               where: {
                 claimId: { in: approvedClaimIds },
-                toStatus: { in: ['UNDER_REVIEW', 'APPROVED'] },
+                toStatus: { in: ['UNDER_REVIEW', CLAIM_STATUSES.APPROVED] },
               },
               select: { claimId: true, toStatus: true, createdAt: true },
               orderBy: { createdAt: 'asc' },
@@ -702,7 +702,7 @@ router.get(
             for (const e of events) {
               if (!byClaimId[e.claimId]) byClaimId[e.claimId] = {};
               if (e.toStatus === 'UNDER_REVIEW') byClaimId[e.claimId].underReview = e.createdAt;
-              if (e.toStatus === 'APPROVED') byClaimId[e.claimId].approved = e.createdAt;
+              if (e.toStatus === CLAIM_STATUSES.APPROVED) byClaimId[e.claimId].approved = e.createdAt;
             }
             for (const entry of Object.values(byClaimId)) {
               if (entry.underReview && entry.approved) {
@@ -782,7 +782,7 @@ router.post(
 
       for (const userId of userIds) {
         const user = await prisma.user.findUnique({ where: { id: userId } });
-        if (!user || user.role !== 'PATIENT') {
+        if (!user || user.role !== USER_ROLES.PATIENT) {
           results.push({ userId, status: 'not_patient' });
           continue;
         }
