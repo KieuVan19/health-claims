@@ -13,14 +13,14 @@ const router = Router();
 
 /**
  * @openapi
- * /documents/claims/{claimId}/upload:
+ * /documents/upload:
  *   post:
  *     tags: [Documents]
  *     summary: Upload documents to a claim (Patient only)
  *     security:
  *       - bearerAuth: []
  *     parameters:
- *       - in: path
+ *       - in: query
  *         name: claimId
  *         required: true
  *         schema:
@@ -41,7 +41,7 @@ const router = Router();
  *         description: Documents uploaded
  */
 router.post(
-  '/claims/:claimId/upload',
+  '/upload',
   authenticate,
   requireRole('PATIENT'),
   requireOwnership('claim'),
@@ -56,7 +56,12 @@ router.post(
   },
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { claimId } = req.params;
+      const { claimId } = req.query;
+
+      if (!claimId || typeof claimId !== 'string') {
+        res.status(400).json({ error: 'claimId query parameter is required' });
+        return;
+      }
 
       const files = req.files as Express.Multer.File[];
       if (!files || files.length === 0) {
@@ -88,14 +93,14 @@ router.post(
 
 /**
  * @openapi
- * /documents/claims/{claimId}:
+ * /documents:
  *   get:
  *     tags: [Documents]
  *     summary: List all documents for a claim
  *     security:
  *       - bearerAuth: []
  *     parameters:
- *       - in: path
+ *       - in: query
  *         name: claimId
  *         required: true
  *         schema:
@@ -105,20 +110,38 @@ router.post(
  *         description: List of documents
  */
 router.get(
-  '/claims/:claimId',
+  '/',
   authenticate,
-  requireOwnership('claim'),
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { claimId } = req.params;
-      const claim = req.resource;
+      const { claimId } = req.query;
+
+      if (!claimId || typeof claimId !== 'string') {
+        res.status(400).json({ error: 'claimId query parameter is required' });
+        return;
+      }
+
+      const claim = await prisma.claim.findUnique({
+        where: { id: claimId },
+        include: { patient: true },
+      });
+
+      if (!claim) {
+        res.status(404).json({ error: 'Claim not found' });
+        return;
+      }
+
+      const isOwn = req.user!.role === 'PATIENT' && claim.patientId === req.user!.id;
+      if (req.user!.role === 'PATIENT' && !isOwn) {
+        res.status(403).json({ error: 'You can only access your own claims' });
+        return;
+      }
 
       const documents = await prisma.document.findMany({
         where: { claimId, deletedAt: null },
         orderBy: { createdAt: 'desc' },
       });
 
-      const isOwn = req.user!.role === 'PATIENT' && claim.patientId === req.user!.id;
       logRead(req.user!.id, 'DocumentList', claimId, req, isOwn);
 
       res.json(documents);
