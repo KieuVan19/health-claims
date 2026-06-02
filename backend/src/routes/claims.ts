@@ -685,8 +685,8 @@ router.get(
       logRead(req.user!.id, 'Claim', claim.id, req, isOwn);
 
       // Derive submittedAt and ack SLA from events already included in the claim
-      const submittedEvent = claim.events.find((e) => e.toStatus === CLAIM_STATUSES.SUBMITTED);
-      const underReviewEvent = claim.events.find((e) => e.toStatus === CLAIM_STATUSES.UNDER_REVIEW);
+      const submittedEvent = claim.events.find((e: any) => e.toStatus === CLAIM_STATUSES.SUBMITTED);
+      const underReviewEvent = claim.events.find((e: any) => e.toStatus === CLAIM_STATUSES.UNDER_REVIEW);
       const submittedAt = submittedEvent?.createdAt ?? null;
       const ackDays = (submittedAt && underReviewEvent)
         ? Math.floor((underReviewEvent.createdAt.getTime() - submittedAt.getTime()) / (1000 * 60 * 60 * 24))
@@ -1220,7 +1220,11 @@ router.post(
       let result: any;
       let auditAction: string = actionReq.action;
 
-      switch (actionReq.action) {
+      // Wrap all DB operations in a transaction to ensure data consistency
+      result = await prisma.$transaction(async (tx) => {
+        let txResult: any;
+
+        switch (actionReq.action) {
         case 'SUBMIT': {
           if (role !== 'PATIENT') {
             res.status(403).json({ error: 'Only patients can submit claims' });
@@ -1257,13 +1261,13 @@ router.post(
           const hasSecondary = activeUserPolicies.some((up) => up.payerOrder === 'SECONDARY' && new Date(up.policy.expiryDate) >= new Date());
           const cobFlag = hasPrimary && hasSecondary;
 
-          result = await prisma.claim.update({
+          txResult = await tx.claim.update({
             where: { id: claim.id },
             data: { status: CLAIM_STATUSES.SUBMITTED, cobFlag },
             include: claimInclude,
           });
 
-          await prisma.claimEvent.create({
+          await tx.claimEvent.create({
             data: { claimId: claim.id, userId, action: CLAIM_STATUSES.SUBMITTED, fromStatus: CLAIM_STATUSES.DRAFT, toStatus: CLAIM_STATUSES.SUBMITTED },
           });
 
@@ -1312,13 +1316,13 @@ router.post(
           }
 
           const { reason } = actionReq.payload as z.infer<typeof withdrawSchema>;
-          result = await prisma.claim.update({
+          txResult = await tx.claim.update({
             where: { id: claim.id },
             data: { status: CLAIM_STATUSES.WITHDRAWN, adjusterNotes: reason ? `Withdrawn by patient: ${reason}` : 'Withdrawn by patient' },
             include: claimInclude,
           });
 
-          await prisma.claimEvent.create({
+          await tx.claimEvent.create({
             data: {
               claimId: claim.id,
               userId,
@@ -1361,13 +1365,13 @@ router.post(
           const fromStatus = claim.status;
           const toStatus = CLAIM_STATUSES.UNDER_REVIEW;
 
-          result = await prisma.claim.update({
+          txResult = await tx.claim.update({
             where: { id: claim.id },
             data: { adjusterId, status: toStatus },
             include: claimInclude,
           });
 
-          await prisma.claimEvent.create({
+          await tx.claimEvent.create({
             data: {
               claimId: claim.id,
               userId,
@@ -1438,7 +1442,7 @@ router.post(
 
           const finalStatus = reimbursable === 0 ? CLAIM_STATUSES.PAID : CLAIM_STATUSES.APPROVED;
 
-          result = await prisma.claim.update({
+          txResult = await tx.claim.update({
             where: { id: claim.id },
             data: {
               status: finalStatus,
@@ -1451,12 +1455,12 @@ router.post(
             include: claimInclude,
           });
 
-          await prisma.claimEvent.create({
+          await tx.claimEvent.create({
             data: { claimId: claim.id, userId, action: CLAIM_STATUSES.APPROVED, fromStatus: claim.status, toStatus: finalStatus, note: eventNote },
           });
 
           if (reimbursable === 0) {
-            await prisma.payout.create({
+            await tx.payout.create({
               data: {
                 claimId: claim.id,
                 processedBy: userId,
@@ -1494,7 +1498,7 @@ router.post(
 
           await sendClaimApproved(claim.patient.email, claim.claimNumber, reimbursable);
 
-          const wasAppealed = claim.status === CLAIM_STATUSES.APPEAL_PENDING || !!(await prisma.claimEvent.findFirst({ where: { claimId: claim.id, action: 'APPEAL_RESOLVED' } }));
+          const wasAppealed = claim.status === CLAIM_STATUSES.APPEAL_PENDING || !!(await tx.claimEvent.findFirst({ where: { claimId: claim.id, action: 'APPEAL_RESOLVED' } }));
           generateAndStoreEob(claim.id, userId, wasAppealed).catch((err: unknown) => {
             console.error('[EOB] Failed to generate EOB for claim', claim.id, err);
           });
@@ -1512,13 +1516,13 @@ router.post(
           }
 
           const { notes } = actionReq.payload as z.infer<typeof rejectClaimSchema>;
-          result = await prisma.claim.update({
+          txResult = await tx.claim.update({
             where: { id: claim.id },
             data: { status: CLAIM_STATUSES.REJECTED, adjusterNotes: notes },
             include: claimInclude,
           });
 
-          await prisma.claimEvent.create({
+          await tx.claimEvent.create({
             data: { claimId: claim.id, userId, action: CLAIM_STATUSES.REJECTED, fromStatus: claim.status, toStatus: CLAIM_STATUSES.REJECTED, note: notes },
           });
 
@@ -1547,9 +1551,9 @@ router.post(
 
           const { message } = actionReq.payload as z.infer<typeof requestInfoSchema>;
           const [updated] = await Promise.all([
-            prisma.claim.update({ where: { id: claim.id }, data: { status: CLAIM_STATUSES.INFO_REQUESTED }, include: claimInclude }),
-            prisma.infoRequest.create({ data: { claimId: claim.id, fromId: userId, message } }),
-            prisma.claimEvent.create({
+            tx.claim.update({ where: { id: claim.id }, data: { status: CLAIM_STATUSES.INFO_REQUESTED }, include: claimInclude }),
+            tx.infoRequest.create({ data: { claimId: claim.id, fromId: userId, message } }),
+            tx.claimEvent.create({
               data: { claimId: claim.id, userId, action: CLAIM_STATUSES.INFO_REQUESTED, fromStatus: claim.status, toStatus: CLAIM_STATUSES.INFO_REQUESTED, note: message },
             }),
           ]);
@@ -1583,7 +1587,7 @@ router.post(
           }
 
           const { response, infoRequestId } = actionReq.payload as z.infer<typeof respondInfoSchema>;
-          const infoRequest = await prisma.infoRequest.findUnique({ where: { id: infoRequestId } });
+          const infoRequest = await tx.infoRequest.findUnique({ where: { id: infoRequestId } });
           if (!infoRequest || infoRequest.claimId !== claim.id) {
             res.status(404).json({ error: 'Info request not found' });
             return;
@@ -1593,11 +1597,11 @@ router.post(
             return;
           }
 
-          await prisma.infoRequest.update({ where: { id: infoRequestId }, data: { response: response ?? '', respondedAt: new Date() } });
+          await tx.infoRequest.update({ where: { id: infoRequestId }, data: { response: response ?? '', respondedAt: new Date() } });
 
-          result = await prisma.claim.update({ where: { id: claim.id }, data: { status: CLAIM_STATUSES.INFO_RESPONDED }, include: claimInclude });
+          txResult = await tx.claim.update({ where: { id: claim.id }, data: { status: CLAIM_STATUSES.INFO_RESPONDED }, include: claimInclude });
 
-          await prisma.claimEvent.create({
+          await tx.claimEvent.create({
             data: { claimId: claim.id, userId, action: CLAIM_STATUSES.INFO_RESPONDED, fromStatus: claim.status, toStatus: CLAIM_STATUSES.INFO_RESPONDED, note: response },
           });
 
@@ -1628,13 +1632,13 @@ router.post(
             return;
           }
 
-          result = await prisma.claim.update({
+          txResult = await tx.claim.update({
             where: { id: claim.id },
             data: { status: CLAIM_STATUSES.SUBMITTED, adjusterId: null },
             include: claimInclude,
           });
 
-          await prisma.claimEvent.create({
+          await tx.claimEvent.create({
             data: { claimId: claim.id, userId, action: 'RESUBMITTED', fromStatus: CLAIM_STATUSES.REJECTED, toStatus: CLAIM_STATUSES.SUBMITTED },
           });
 
@@ -1722,13 +1726,13 @@ router.post(
           }
 
           const { reason } = actionReq.payload as z.infer<typeof initiateAppealSchema>;
-          const rejectionEvent = await prisma.claimEvent.findFirst({
+          const rejectionEvent = await tx.claimEvent.findFirst({
             where: { claimId: claim.id, action: CLAIM_STATUSES.REJECTED },
             orderBy: { createdAt: 'desc' },
           });
           const originalAdjudicatorId = rejectionEvent?.userId ?? claim.adjusterId;
 
-          result = await prisma.claim.update({
+          txResult = await tx.claim.update({
             where: { id: claim.id },
             data: {
               status: CLAIM_STATUSES.APPEAL_PENDING,
@@ -1739,7 +1743,7 @@ router.post(
             include: claimInclude,
           });
 
-          await prisma.claimEvent.create({
+          await tx.claimEvent.create({
             data: {
               claimId: claim.id,
               userId,
@@ -1815,13 +1819,13 @@ router.post(
             return;
           }
 
-          result = await prisma.claim.update({
+          txResult = await tx.claim.update({
             where: { id: claim.id },
             data: { adjusterId },
             include: claimInclude,
           });
 
-          await prisma.claimEvent.create({
+          await tx.claimEvent.create({
             data: {
               claimId: claim.id,
               userId,
@@ -1863,7 +1867,7 @@ router.post(
           const { resolution, notes } = actionReq.payload as z.infer<typeof resolveAppealSchema>;
           const toStatus = resolution === 'APPEAL_APPROVED' ? CLAIM_STATUSES.UNDER_REVIEW : CLAIM_STATUSES.APPEAL_DENIED;
 
-          result = await prisma.claim.update({
+          txResult = await tx.claim.update({
             where: { id: claim.id },
             data: {
               status: toStatus,
@@ -1872,7 +1876,7 @@ router.post(
             include: claimInclude,
           });
 
-          await prisma.claimEvent.create({
+          await tx.claimEvent.create({
             data: {
               claimId: claim.id,
               userId,
@@ -1916,7 +1920,7 @@ router.post(
 
           const { primaryInsurerName, primaryPaidAmount, primaryEOBDate } = actionReq.payload as z.infer<typeof externalPrimarySchema>;
 
-          result = await prisma.claim.update({
+          txResult = await tx.claim.update({
             where: { id: claim.id },
             data: {
               cobDetail: {
@@ -1957,7 +1961,7 @@ router.post(
           }
 
           const { secondaryPolicyId, notes: cobNotes } = actionReq.payload as z.infer<typeof initiateSecondarySchema>;
-          const primaryPaid = claim.status === CLAIM_STATUSES.PAID && (await prisma.payout.findFirst({ where: { claimId: claim.id } }));
+          const primaryPaid = claim.status === CLAIM_STATUSES.PAID && (await tx.payout.findFirst({ where: { claimId: claim.id } }));
           const externalPrimaryEntered = !!claim.cobDetail && claim.cobDetail.primaryPaidAmount !== undefined && claim.cobDetail.primaryPaidAmount !== null;
 
           if (!primaryPaid && !externalPrimaryEntered) {
@@ -1982,14 +1986,14 @@ router.post(
           if (claim.cobDetail?.patientResponsibility !== undefined && claim.cobDetail.patientResponsibility !== null) {
             primaryPatientResponsibility = claim.cobDetail.patientResponsibility;
           } else if (primaryPaid) {
-            const payout = await prisma.payout.findFirst({ where: { claimId: claim.id } });
+            const payout = await tx.payout.findFirst({ where: { claimId: claim.id } });
             primaryPatientResponsibility = payout ? Math.max(0, claim.totalAmount - payout.amount) : claim.totalAmount;
           } else {
             primaryPatientResponsibility = claim.totalAmount;
           }
 
           const secondaryTotalAmount = primaryPatientResponsibility;
-          const primaryAmountPaid = claim.cobDetail?.primaryPaidAmount ?? (await prisma.payout.findFirst({ where: { claimId: claim.id } }))?.amount ?? 0;
+          const primaryAmountPaid = claim.cobDetail?.primaryPaidAmount ?? (await tx.payout.findFirst({ where: { claimId: claim.id } }))?.amount ?? 0;
           const maxSecondary = Math.max(0, claim.totalAmount - primaryAmountPaid);
 
           const planYearStart = getPlanYearStart(
@@ -2040,7 +2044,7 @@ router.post(
             data: { secondaryClaimId: secondaryClaim.id },
           });
 
-          await prisma.claimEvent.create({
+          await tx.claimEvent.create({
             data: {
               claimId: secondaryClaim.id,
               userId,
@@ -2076,7 +2080,7 @@ router.post(
             data: { assignedAdjusterId: adjusterId, status: CLAIM_STATUSES.UNDER_REVIEW },
           });
 
-          await prisma.claimEvent.create({
+          await tx.claimEvent.create({
             data: {
               claimId: claim.id,
               userId,
@@ -2105,7 +2109,7 @@ router.post(
             ipAddress: req.ip,
           });
 
-          result = await prisma.claim.findUnique({ where: { id: claim.id }, include: claimInclude });
+          txResult = await tx.claim.findUnique({ where: { id: claim.id }, include: claimInclude });
           auditAction = 'REASSIGN';
           break;
         }
@@ -2145,12 +2149,12 @@ router.post(
 
           if (adjudicationStatus === CLAIM_STATUSES.APPROVED) {
             const resolvedAllowed = allowedAmount ?? line.billedAmount;
-            await prisma.claimLine.update({
+            await tx.claimLine.update({
               where: { id: line.id },
               data: { adjudicationStatus: CLAIM_STATUSES.APPROVED, allowedAmount: resolvedAllowed, adjudicatorNote: adjudicatorNote ?? null },
             });
           } else {
-            await prisma.claimLine.update({
+            await tx.claimLine.update({
               where: { id: line.id },
               data: {
                 adjudicationStatus,
@@ -2161,7 +2165,7 @@ router.post(
             });
           }
 
-          const updatedLines = await prisma.claimLine.findMany({
+          const updatedLines = await tx.claimLine.findMany({
             where: { claimId: claim.id },
             orderBy: { lineNumber: 'asc' },
           });
@@ -2199,7 +2203,7 @@ router.post(
             data: { status: newClaimStatus, ...eligibilityUpdate },
           });
 
-          await prisma.claimEvent.create({
+          await tx.claimEvent.create({
             data: {
               claimId: claim.id,
               userId,
@@ -2211,7 +2215,7 @@ router.post(
             },
           });
 
-          result = await prisma.claim.findUnique({ where: { id: claim.id }, include: claimInclude });
+          txResult = await tx.claim.findUnique({ where: { id: claim.id }, include: claimInclude });
           auditAction = 'ADJUDICATE_LINE';
           break;
         }
@@ -2220,7 +2224,10 @@ router.post(
           const _exhaustive: never = actionReq;
           return _exhaustive;
         }
-      }
+        }
+
+        return txResult;
+      });
 
       // Create audit log for non-filing-deadline actions (they have their own audit logging)
       if ((actionReq as any).action !== 'OVERRIDE_FILING_DEADLINE') {

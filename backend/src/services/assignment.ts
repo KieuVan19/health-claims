@@ -89,20 +89,23 @@ export async function autoAssignClaim(
     return;
   }
 
-  await prisma.claim.update({
-    where: { id: claimId },
-    data: { assignedAdjusterId: adjuster.id, status: 'UNDER_REVIEW' },
-  });
+  // Wrap assignment operations in transaction to ensure data consistency
+  await prisma.$transaction(async (tx) => {
+    await tx.claim.update({
+      where: { id: claimId },
+      data: { assignedAdjusterId: adjuster.id, status: 'UNDER_REVIEW' },
+    });
 
-  await prisma.claimEvent.create({
-    data: {
-      claimId,
-      userId: systemUserId,
-      action: 'ASSIGNED',
-      fromStatus: 'SUBMITTED',
-      toStatus: 'UNDER_REVIEW',
-      note: `Auto-assigned to ${adjuster.firstName} ${adjuster.lastName}`,
-    },
+    await tx.claimEvent.create({
+      data: {
+        claimId,
+        userId: systemUserId,
+        action: 'ASSIGNED',
+        fromStatus: 'SUBMITTED',
+        toStatus: 'UNDER_REVIEW',
+        note: `Auto-assigned to ${adjuster.firstName} ${adjuster.lastName}`,
+      },
+    });
   });
 
   await createAuditLog({

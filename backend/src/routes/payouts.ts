@@ -187,8 +187,9 @@ router.post(
         grossAmount,
       );
 
-      const [updatedClaim, payout] = await Promise.all([
-        prisma.claim.update({
+      // Wrap payment processing in transaction to ensure data consistency
+      const [updatedClaim, payout] = await prisma.$transaction(async (tx) => {
+        const updatedClaim = await tx.claim.update({
           where: { id: claimId },
           data: { status: CLAIM_STATUSES.PAID },
           include: {
@@ -196,8 +197,9 @@ router.post(
             policy: true,
             payout: true,
           },
-        }),
-        prisma.payout.create({
+        });
+
+        const payout = await tx.payout.create({
           data: {
             claimId,
             processedBy: req.user!.id,
@@ -205,8 +207,9 @@ router.post(
             paymentRef,
             notes,
           },
-        }),
-        prisma.claimEvent.create({
+        });
+
+        await tx.claimEvent.create({
           data: {
             claimId,
             userId: req.user!.id,
@@ -215,8 +218,10 @@ router.post(
             toStatus: CLAIM_STATUSES.PAID,
             note: `Payment reference: ${paymentRef}`,
           },
-        }),
-      ]);
+        });
+
+        return [updatedClaim, payout];
+      });
 
       await markOffsets(offsetIds);
 
@@ -323,12 +328,14 @@ router.post(
             grossAmount,
           );
 
-          await Promise.all([
-            prisma.claim.update({
+          // Wrap each claim's payment processing in transaction
+          await prisma.$transaction(async (tx) => {
+            await tx.claim.update({
               where: { id: claim.id },
               data: { status: CLAIM_STATUSES.PAID },
-            }),
-            prisma.payout.create({
+            });
+
+            await tx.payout.create({
               data: {
                 claimId: claim.id,
                 processedBy: req.user!.id,
@@ -337,8 +344,9 @@ router.post(
                 batchRef,
                 notes,
               },
-            }),
-            prisma.claimEvent.create({
+            });
+
+            await tx.claimEvent.create({
               data: {
                 claimId: claim.id,
                 userId: req.user!.id,
@@ -347,8 +355,8 @@ router.post(
                 toStatus: CLAIM_STATUSES.PAID,
                 note: isBatch ? `Batch payment: ${paymentRef}` : `Payment reference: ${paymentRef}`,
               },
-            }),
-          ]);
+            });
+          });
 
           await markOffsets(offsetIds);
 
