@@ -8,22 +8,22 @@ These 4 items address core architectural issues that affect every API consumer. 
 
 ## Task #1: Consolidate Claim Action Endpoints
 
-**Status:** ✅ DONE
+**Status:** ✅ DONE (completed via PR #21 — `refactor/remove-legacy-claim-endpoints`)
 
 **Problem:** 16 individual endpoints for claim state transitions (`/approve`, `/reject`, `/submit`, `/withdraw`, `/request-info`, `/respond-info`, `/resubmit`, `/override-filing-deadline`, `/appeal`, `/assign`, `/assign-appeal`, `/resolve-appeal`, `/reassign`, `/adjudicate-line`, `/external-primary`, `/initiate-secondary`)
 
 **Solution:** Single unified dispatcher `POST /claims/:id/actions` with discriminated union payloads.
 
 **Impact:**
-- Reduces endpoint count from 50+ to ~35
+- Reduced claim endpoints from 24 to 8 (7 CRUD + 1 unified dispatcher)
 - Centralizes validation and event logging
 - Eliminates duplicated authorization checks
 
 **Files Changed:**
-- Backend: `backend/src/routes/claims.ts` (~1,700 lines removed)
-- Frontend: 7 component files updated to use `executeClaimAction()`
+- Backend: `backend/src/routes/claims.ts` (1,634 lines removed; orphaned schemas moved before dispatcher)
+- Tests: `backend/src/routes/claims.test.ts` (27 tests: discriminated union schema + `deriveClaimStatusFromLines`)
 
-**Tests:** All 37 tests pass
+**Tests:** 27 new tests pass; 0 regressions
 
 ---
 
