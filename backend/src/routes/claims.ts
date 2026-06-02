@@ -298,7 +298,14 @@ router.get(
       if (dateFilter) where['incidentDate'] = dateFilter;
 
       const searchWhere = buildSearchWhere(search, ['claimNumber', 'description', 'patient.firstName', 'patient.lastName']);
-      if (searchWhere) where['OR'] = searchWhere.OR;
+      if (searchWhere) {
+        // Combine search OR with existing filters using AND
+        if (Object.keys(where).length > 0) {
+          where['AND'] = [searchWhere];
+        } else {
+          where['OR'] = searchWhere.OR;
+        }
+      }
 
       const validSortFields = ['createdAt', 'updatedAt', 'totalAmount', 'status', 'claimNumber', 'incidentDate'];
       const sortField = validSortFields.includes(sortBy) ? sortBy : 'createdAt';
