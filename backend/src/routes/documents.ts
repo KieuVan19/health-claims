@@ -25,20 +25,36 @@ const router = Router();
  *         required: true
  *         schema:
  *           type: string
+ *         description: Claim ID to attach documents to
  *     requestBody:
+ *       required: true
  *       content:
  *         multipart/form-data:
  *           schema:
  *             type: object
+ *             required: [documents]
  *             properties:
  *               documents:
  *                 type: array
  *                 items:
  *                   type: string
  *                   format: binary
+ *                 description: Files to upload (PDF, JPG, PNG)
  *     responses:
  *       201:
- *         description: Documents uploaded
+ *         description: Documents uploaded successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Document'
+ *       400:
+ *         description: Invalid request or no files provided
+ *       403:
+ *         description: Forbidden - claim ownership required
+ *       404:
+ *         description: Claim not found
  */
 router.post(
   '/upload',
@@ -105,9 +121,22 @@ router.post(
  *         required: true
  *         schema:
  *           type: string
+ *         description: Claim ID to list documents for
  *     responses:
  *       200:
- *         description: List of documents
+ *         description: List of documents for the claim
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Document'
+ *       400:
+ *         description: Missing claimId parameter
+ *       403:
+ *         description: Forbidden - claim ownership required for patients
+ *       404:
+ *         description: Claim not found
  */
 router.get(
   '/',
@@ -165,9 +194,19 @@ router.get(
  *         required: true
  *         schema:
  *           type: string
+ *         description: Document ID
  *     responses:
  *       200:
  *         description: File download
+ *         content:
+ *           application/octet-stream:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *       404:
+ *         description: Document or file not found
+ *       403:
+ *         description: Forbidden - claim ownership required for patients
  */
 router.get(
   '/:id/download',
@@ -209,9 +248,22 @@ router.get(
  *         required: true
  *         schema:
  *           type: string
+ *         description: Document ID
  *     responses:
  *       200:
- *         description: Document deleted
+ *         description: Document deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message: { type: string }
+ *       400:
+ *         description: Cannot delete document from non-DRAFT claim
+ *       403:
+ *         description: Cannot delete system-generated documents
+ *       404:
+ *         description: Document not found
  */
 router.delete(
   '/:id',

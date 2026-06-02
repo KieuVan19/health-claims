@@ -38,7 +38,7 @@ const batchPaySchema = z.object({
  * /payouts:
  *   get:
  *     tags: [Payouts]
- *     summary: List APPROVED claims ready for payout
+ *     summary: List APPROVED claims ready for payout (Finance Officer / Admin only)
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -46,18 +46,60 @@ const batchPaySchema = z.object({
  *         name: page
  *         schema:
  *           type: integer
+ *         description: Page number (default 1)
  *       - in: query
  *         name: limit
  *         schema:
  *           type: integer
+ *         description: Records per page (default 20, max 100)
  *       - in: query
  *         name: status
  *         schema:
  *           type: string
- *           enum: [APPROVED, PAID]
+ *           enum: [APPROVED, PARTIALLY_APPROVED, PAID]
+ *         description: Filter by claim status
+ *       - in: query
+ *         name: from
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *         description: Filter by date from
+ *       - in: query
+ *         name: to
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *         description: Filter by date to
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Search by claim number, type, patient name, or payment reference
  *     responses:
  *       200:
- *         description: Paginated list of claims for payout
+ *         description: Paginated list of claims with payout info
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     allOf:
+ *                       - $ref: '#/components/schemas/Claim'
+ *                       - type: object
+ *                         properties:
+ *                           patient: { $ref: '#/components/schemas/User' }
+ *                           adjuster: { $ref: '#/components/schemas/User' }
+ *                           policy: { type: object }
+ *                           payout: { $ref: '#/components/schemas/Payout' }
+ *                 pagination:
+ *                   $ref: '#/components/schemas/Pagination'
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - requires FINANCE_OFFICER or ADMIN role
  */
 router.get(
   '/',
@@ -128,7 +170,7 @@ router.get(
  * /payouts/{claimId}/pay:
  *   post:
  *     tags: [Payouts]
- *     summary: Process payment for an approved claim
+ *     summary: Process payment for an approved claim (Finance Officer / Admin only)
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -137,6 +179,7 @@ router.get(
  *         required: true
  *         schema:
  *           type: string
+ *         description: Claim ID to process payment for
  *     requestBody:
  *       required: true
  *       content:
@@ -147,11 +190,34 @@ router.get(
  *             properties:
  *               paymentRef:
  *                 type: string
+ *                 description: Payment reference / check number
  *               notes:
  *                 type: string
+ *                 description: Optional payment notes
  *     responses:
  *       200:
- *         description: Payment processed
+ *         description: Payment processed successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 claim:
+ *                   allOf:
+ *                     - $ref: '#/components/schemas/Claim'
+ *                     - type: object
+ *                       properties:
+ *                         patient: { $ref: '#/components/schemas/User' }
+ *                         policy: { $ref: '#/components/schemas/Policy' }
+ *                         payout: { $ref: '#/components/schemas/Payout' }
+ *                 payout:
+ *                   $ref: '#/components/schemas/Payout'
+ *       400:
+ *         description: Claim not in APPROVED status
+ *       404:
+ *         description: Claim not found
+ *       409:
+ *         description: Payment already processed for this claim
  */
 router.post(
   '/:claimId/pay',
@@ -265,7 +331,7 @@ router.post(
  * /payouts/batch:
  *   post:
  *     tags: [Payouts]
- *     summary: Process batch payment for multiple approved claims
+ *     summary: Process batch payment for multiple approved claims (Finance Officer / Admin only)
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -280,11 +346,41 @@ router.post(
  *                 type: array
  *                 items:
  *                   type: string
+ *                 description: Array of claim IDs to process
  *               paymentRef:
  *                 type: string
+ *                 description: Batch payment reference
+ *               notes:
+ *                 type: string
+ *                 description: Optional notes for the batch
  *     responses:
  *       200:
- *         description: Batch payment processed
+ *         description: Batch payment processed with results and errors
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 processed:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       claimId: { type: string }
+ *                       claimNumber: { type: string }
+ *                       amount: { type: number }
+ *                       status: { type: string }
+ *                 errors:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       claimId: { type: string }
+ *                       error: { type: string }
+ *                 batchRef:
+ *                   type: string
+ *       400:
+ *         description: No APPROVED claims found
  */
 router.post(
   '/batch',
