@@ -18,6 +18,7 @@ import { autoAssignClaim } from '../services/assignment';
 import { config } from '../config';
 import { generateAndStoreEob } from '../services/eob';
 import { getPlanYearStart } from '../utils/planYear';
+import { softDelete } from '../utils/softDelete';
 import {
   sendClaimSubmitted,
   sendClaimApproved,
@@ -312,6 +313,9 @@ router.get(
           where['OR'] = searchWhere.OR;
         }
       }
+
+      // Exclude soft-deleted claims
+      where['deletedAt'] = null;
 
       const validSortFields = ['createdAt', 'updatedAt', 'totalAmount', 'status', 'claimNumber', 'incidentDate'];
       const sortField = validSortFields.includes(sortBy) ? sortBy : 'createdAt';
@@ -1077,7 +1081,7 @@ router.delete(
       const claim = req.resource;
       if (claim.status !== CLAIM_STATUSES.DRAFT) { res.status(400).json({ error: 'Only DRAFT claims can be deleted' }); return; }
 
-      await prisma.claim.update({ where: { id: claim.id }, data: { deletedAt: new Date() } });
+      await prisma.claim.update({ where: { id: claim.id }, data: { deletedAt: new Date(), deletedBy: req.user!.id } });
       await createAuditLog({ userId: req.user!.id, action: 'DELETE_CLAIM', resource: 'Claim', resourceId: claim.id, details: { claimNumber: claim.claimNumber }, ipAddress: req.ip });
 
       res.json({ message: 'Claim deleted successfully' });

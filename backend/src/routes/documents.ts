@@ -7,6 +7,7 @@ import { requireRole } from '../middleware/roles';
 import { requireOwnership } from '../middleware/ownership';
 import { uploadDocuments } from '../middleware/upload';
 import { logRead } from '../utils/audit';
+import { softDelete } from '../utils/softDelete';
 
 const router = Router();
 
@@ -214,7 +215,7 @@ router.delete(
         fs.unlinkSync(filePath);
       }
 
-      await prisma.document.update({ where: { id: document.id }, data: { deletedAt: new Date() } });
+      await prisma.document.update({ where: { id: document.id }, data: { deletedAt: new Date(), deletedBy: req.user!.id } });
 
       res.json({ message: 'Document deleted successfully' });
     } catch (err) {
