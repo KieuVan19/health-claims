@@ -10,7 +10,7 @@ import { requireOwnership } from '../middleware/ownership';
 import { validate } from '../middleware/validate';
 import { createAuditLog, logRead } from '../utils/audit';
 import { createNotification } from '../utils/notification';
-import { paginatedResponse } from '../utils/response';
+import { createPaginatedResponse } from '../utils/pagination';
 import { generateClaimNumber } from '../utils/claimNumber';
 import { parseDateRange, buildSearchWhere } from '../utils/filters';
 import { calculateEligible, getDeductiblePaid, getOopPaid, scoreFraud, checkFilingDeadline } from '../services/claims';
@@ -363,7 +363,7 @@ router.get(
         };
       });
 
-      res.json(paginatedResponse(claimsWithSla, total, pageNum, limitNum));
+      res.json(createPaginatedResponse(claimsWithSla, total, pageNum, limitNum));
     } catch (err) {
       next(err);
     }

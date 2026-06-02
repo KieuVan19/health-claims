@@ -6,7 +6,7 @@ import { authenticate } from '../middleware/auth';
 import { requireRole } from '../middleware/roles';
 import { validate } from '../middleware/validate';
 import { createAuditLog, logRead } from '../utils/audit';
-import { paginatedResponse } from '../utils/response';
+import { createPaginatedResponse } from '../utils/pagination';
 import { buildSearchWhere, parseDateRange } from '../utils/filters';
 import { USER_ROLES, USER_ROLES_ARRAY } from '../constants/enums';
 
@@ -111,7 +111,7 @@ router.get(
         }),
       ]);
 
-      res.json(paginatedResponse(users, total, pageNum, limitNum));
+      res.json(createPaginatedResponse(users, total, pageNum, limitNum));
     } catch (err) {
       next(err);
     }
