@@ -12,6 +12,7 @@ import { createAuditLog, logRead } from '../utils/audit';
 import { createNotification } from '../utils/notification';
 import { paginatedResponse } from '../utils/response';
 import { generateClaimNumber } from '../utils/claimNumber';
+import { parseDateRange, buildSearchWhere } from '../utils/filters';
 import { calculateEligible, getDeductiblePaid, getOopPaid, scoreFraud, checkFilingDeadline } from '../services/claims';
 import { autoAssignClaim } from '../services/assignment';
 import { config } from '../config';
@@ -291,20 +292,12 @@ router.get(
         where['status'] = { not: 'DRAFT' };
       }
       if (type) where['type'] = type;
-      if (dateFrom || dateTo) {
-        where['incidentDate'] = {
-          ...(dateFrom ? { gte: new Date(dateFrom) } : {}),
-          ...(dateTo ? { lte: new Date(new Date(dateTo).setHours(23, 59, 59, 999)) } : {}),
-        };
-      }
-      if (search) {
-        where['OR'] = [
-          { claimNumber: { contains: search } },
-          { description: { contains: search } },
-          { patient: { firstName: { contains: search } } },
-          { patient: { lastName: { contains: search } } },
-        ];
-      }
+
+      const dateFilter = parseDateRange(dateFrom, dateTo);
+      if (dateFilter) where['incidentDate'] = dateFilter;
+
+      const searchWhere = buildSearchWhere(search, ['claimNumber', 'description', 'patient.firstName', 'patient.lastName']);
+      if (searchWhere) where['OR'] = searchWhere.OR;
 
       const validSortFields = ['createdAt', 'updatedAt', 'totalAmount', 'status', 'claimNumber', 'incidentDate'];
       const sortField = validSortFields.includes(sortBy) ? sortBy : 'createdAt';
@@ -2433,6 +2426,45 @@ const reassignSchema = z.object({
   adjusterId: z.string().min(1, 'Adjuster ID is required'),
 });
 
+// ─── Unified Action Dispatcher Schema ────────────────────────────────────────
+
+type ClaimAction =
+  | { action: 'SUBMIT'; payload: Record<string, never> }
+  | { action: 'WITHDRAW'; payload: z.infer<typeof withdrawSchema> }
+  | { action: 'ASSIGN'; payload: z.infer<typeof assignSchema> }
+  | { action: 'APPROVE'; payload: z.infer<typeof approveClaimSchema> }
+  | { action: 'REJECT'; payload: z.infer<typeof rejectClaimSchema> }
+  | { action: 'REQUEST_INFO'; payload: z.infer<typeof requestInfoSchema> }
+  | { action: 'RESPOND_INFO'; payload: z.infer<typeof respondInfoSchema> }
+  | { action: 'RESUBMIT'; payload: Record<string, never> }
+  | { action: 'OVERRIDE_FILING_DEADLINE'; payload: z.infer<typeof overrideFilingDeadlineSchema> }
+  | { action: 'APPEAL'; payload: z.infer<typeof initiateAppealSchema> }
+  | { action: 'ASSIGN_APPEAL'; payload: z.infer<typeof assignSchema> }
+  | { action: 'RESOLVE_APPEAL'; payload: z.infer<typeof resolveAppealSchema> }
+  | { action: 'EXTERNAL_PRIMARY'; payload: z.infer<typeof externalPrimarySchema> }
+  | { action: 'INITIATE_SECONDARY'; payload: z.infer<typeof initiateSecondarySchema> }
+  | { action: 'REASSIGN'; payload: z.infer<typeof reassignSchema> }
+  | { action: 'ADJUDICATE_LINE'; payload: z.infer<typeof adjudicateLineSchema> & { lineId: string } };
+
+const claimActionSchema = z.discriminatedUnion('action', [
+  z.object({ action: z.literal('SUBMIT'), payload: z.object({}).strict() }),
+  z.object({ action: z.literal('WITHDRAW'), payload: withdrawSchema }),
+  z.object({ action: z.literal('ASSIGN'), payload: assignSchema }),
+  z.object({ action: z.literal('APPROVE'), payload: approveClaimSchema }),
+  z.object({ action: z.literal('REJECT'), payload: rejectClaimSchema }),
+  z.object({ action: z.literal('REQUEST_INFO'), payload: requestInfoSchema }),
+  z.object({ action: z.literal('RESPOND_INFO'), payload: respondInfoSchema }),
+  z.object({ action: z.literal('RESUBMIT'), payload: z.object({}).strict() }),
+  z.object({ action: z.literal('OVERRIDE_FILING_DEADLINE'), payload: overrideFilingDeadlineSchema }),
+  z.object({ action: z.literal('APPEAL'), payload: initiateAppealSchema }),
+  z.object({ action: z.literal('ASSIGN_APPEAL'), payload: assignSchema }),
+  z.object({ action: z.literal('RESOLVE_APPEAL'), payload: resolveAppealSchema }),
+  z.object({ action: z.literal('EXTERNAL_PRIMARY'), payload: externalPrimarySchema }),
+  z.object({ action: z.literal('INITIATE_SECONDARY'), payload: initiateSecondarySchema }),
+  z.object({ action: z.literal('REASSIGN'), payload: reassignSchema }),
+  z.object({ action: z.literal('ADJUDICATE_LINE'), payload: adjudicateLineSchema.extend({ lineId: z.string().min(1) }) }),
+]);
+
 /**
  * @openapi
  * /claims/{id}/reassign:
@@ -2670,6 +2702,1091 @@ router.post(
       next(err);
     }
   },
+);
+
+// ─── Unified Action Dispatcher ───────────────────────────────────────────────
+
+/**
+ * @openapi
+ * /claims/{id}/actions:
+ *   post:
+ *     tags: [Claims]
+ *     summary: Execute a claim action (unified dispatcher endpoint)
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             oneOf:
+ *               - type: object
+ *                 required: [action]
+ *                 properties:
+ *                   action: { type: string, enum: [SUBMIT, WITHDRAW, RESUBMIT, OVERRIDE_FILING_DEADLINE] }
+ *               - type: object
+ *                 required: [action, payload]
+ *                 properties:
+ *                   action: { type: string }
+ *                   payload: { type: object }
+ *     responses:
+ *       200:
+ *         description: Action executed successfully
+ *       400:
+ *         description: Invalid action or payload
+ */
+router.post(
+  '/:id/actions',
+  authenticate,
+  validate(claimActionSchema),
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const claimId = req.params['id'];
+      const actionReq = req.body as z.infer<typeof claimActionSchema>;
+      const { role, id: userId } = req.user!;
+
+      const claim = await prisma.claim.findUnique({
+        where: { id: claimId },
+        include: claimInclude,
+      });
+
+      if (!claim) {
+        res.status(404).json({ error: 'Claim not found' });
+        return;
+      }
+
+      let result: any;
+      let auditAction: string = actionReq.action;
+
+      switch (actionReq.action) {
+        case 'SUBMIT': {
+          if (role !== 'PATIENT') {
+            res.status(403).json({ error: 'Only patients can submit claims' });
+            return;
+          }
+          if (claim.patientId !== userId) {
+            res.status(403).json({ error: 'Access denied' });
+            return;
+          }
+          if (claim.status !== 'DRAFT') {
+            res.status(400).json({ error: 'Only DRAFT claims can be submitted' });
+            return;
+          }
+
+          if (new Date(claim.policy.expiryDate) < new Date()) {
+            res.status(400).json({ error: 'Policy has expired. Cannot submit this claim.' });
+            return;
+          }
+
+          if (!claim.filingDeadlineOverride) {
+            const deadlineCheck = checkFilingDeadline(new Date(claim.incidentDate), new Date(), claim.policy.filingDeadlineDays);
+            if (!deadlineCheck.withinDeadline) {
+              res.status(422).json({
+                error: `Claim filing deadline exceeded. Claims for this policy must be filed within ${deadlineCheck.deadlineDays} days of the incident date.`,
+                code: 'FILING_DEADLINE_EXCEEDED',
+                deadlineDays: deadlineCheck.deadlineDays,
+                daysSinceIncident: deadlineCheck.daysSinceIncident,
+              });
+              return;
+            }
+          }
+
+          const activeUserPolicies = await prisma.userPolicy.findMany({
+            where: { userId },
+            include: { policy: true },
+          });
+          const hasPrimary = activeUserPolicies.some((up) => up.payerOrder === 'PRIMARY' && new Date(up.policy.expiryDate) >= new Date());
+          const hasSecondary = activeUserPolicies.some((up) => up.payerOrder === 'SECONDARY' && new Date(up.policy.expiryDate) >= new Date());
+          const cobFlag = hasPrimary && hasSecondary;
+
+          result = await prisma.claim.update({
+            where: { id: claim.id },
+            data: { status: 'SUBMITTED', cobFlag },
+            include: claimInclude,
+          });
+
+          await prisma.claimEvent.create({
+            data: { claimId: claim.id, userId, action: 'SUBMITTED', fromStatus: 'DRAFT', toStatus: 'SUBMITTED' },
+          });
+
+          autoAssignClaim(claim.id, claim.claimNumber, userId, claim.provider?.specialty).catch((err: unknown) => {
+            console.error('[Assignment] Auto-assign failed for claim', claim.claimNumber, err);
+          });
+
+          const adjusters = await prisma.user.findMany({ where: { role: 'ADJUSTER', isActive: true }, select: { id: true } });
+          await Promise.all(
+            adjusters.map((a) =>
+              createNotification({
+                userId: a.id,
+                title: 'New Claim Submitted',
+                message: `Claim ${claim.claimNumber} has been submitted and awaits assignment.`,
+                type: 'info',
+                link: `/adjuster/claims/${claim.id}`,
+                prefKey: 'claimSubmitted',
+              })
+            )
+          );
+
+          await createNotification({
+            userId: claim.patientId,
+            title: 'Claim Submitted',
+            message: `Your claim ${claim.claimNumber} has been submitted and is awaiting review.`,
+            type: 'success',
+            link: `/claims/${claim.id}`,
+            prefKey: 'claimSubmitted',
+          });
+          await sendClaimSubmitted(claim.patient.email, claim.claimNumber);
+          break;
+        }
+
+        case 'WITHDRAW': {
+          if (role !== 'PATIENT') {
+            res.status(403).json({ error: 'Only patients can withdraw claims' });
+            return;
+          }
+          if (claim.patientId !== userId) {
+            res.status(403).json({ error: 'Access denied' });
+            return;
+          }
+          if (!['DRAFT', 'SUBMITTED'].includes(claim.status)) {
+            res.status(400).json({ error: 'Claims can only be withdrawn before they reach Under Review' });
+            return;
+          }
+
+          const { reason } = actionReq.payload as z.infer<typeof withdrawSchema>;
+          result = await prisma.claim.update({
+            where: { id: claim.id },
+            data: { status: 'WITHDRAWN', adjusterNotes: reason ? `Withdrawn by patient: ${reason}` : 'Withdrawn by patient' },
+            include: claimInclude,
+          });
+
+          await prisma.claimEvent.create({
+            data: {
+              claimId: claim.id,
+              userId,
+              action: 'WITHDRAWN',
+              fromStatus: claim.status,
+              toStatus: 'WITHDRAWN',
+              note: reason || 'Withdrawn by patient',
+            },
+          });
+
+          if (claim.adjusterId) {
+            await createNotification({
+              userId: claim.adjusterId,
+              title: 'Claim Withdrawn',
+              message: `Claim ${claim.claimNumber} has been withdrawn by the patient.`,
+              type: 'warning',
+              link: `/adjuster/claims/${claim.id}`,
+            });
+          }
+          break;
+        }
+
+        case 'ASSIGN': {
+          if (!['ADJUSTER', 'ADMIN'].includes(role)) {
+            res.status(403).json({ error: 'Only adjusters and admins can assign claims' });
+            return;
+          }
+          if (!['SUBMITTED', 'UNDER_REVIEW', 'INFO_RESPONDED'].includes(claim.status)) {
+            res.status(400).json({ error: 'Claim must be SUBMITTED or UNDER_REVIEW to assign' });
+            return;
+          }
+
+          const { adjusterId } = actionReq.payload as z.infer<typeof assignSchema>;
+          const adjuster = await prisma.user.findUnique({ where: { id: adjusterId } });
+          if (!adjuster || adjuster.role !== 'ADJUSTER') {
+            res.status(400).json({ error: 'Invalid adjuster' });
+            return;
+          }
+
+          const fromStatus = claim.status;
+          const toStatus = 'UNDER_REVIEW';
+
+          result = await prisma.claim.update({
+            where: { id: claim.id },
+            data: { adjusterId, status: toStatus },
+            include: claimInclude,
+          });
+
+          await prisma.claimEvent.create({
+            data: {
+              claimId: claim.id,
+              userId,
+              action: 'ASSIGNED',
+              fromStatus,
+              toStatus,
+              note: `Assigned to ${adjuster.firstName} ${adjuster.lastName}`,
+            },
+          });
+
+          await createNotification({
+            userId: claim.patientId,
+            title: 'Claim Under Review',
+            message: `Your claim ${claim.claimNumber} is now under review.`,
+            type: 'info',
+            link: `/claims/${claim.id}`,
+            prefKey: 'claimUnderReview',
+          });
+          await createNotification({
+            userId: adjusterId,
+            title: 'Claim Assigned to You',
+            message: `Claim ${claim.claimNumber} has been assigned to you for review.`,
+            type: 'info',
+            link: `/adjuster/claims/${claim.id}`,
+            prefKey: 'claimUnderReview',
+          });
+          break;
+        }
+
+        case 'APPROVE': {
+          if (!['ADJUSTER', 'ADMIN'].includes(role)) {
+            res.status(403).json({ error: 'Only adjusters and admins can approve claims' });
+            return;
+          }
+          if (!['UNDER_REVIEW', 'INFO_REQUESTED', 'INFO_RESPONDED', 'APPEAL_PENDING'].includes(claim.status)) {
+            res.status(400).json({ error: 'Claim must be UNDER_REVIEW or INFO_REQUESTED to approve' });
+            return;
+          }
+
+          const { notes, eligibleAmount: eligibleAmountOverride } = actionReq.payload as z.infer<typeof approveClaimSchema>;
+
+          const planYearStart = claim.planYearStart ?? new Date(new Date().getFullYear(), 0, 1);
+          const claimNetworkStatus = (claim.networkStatus as 'IN' | 'OUT') ?? 'IN';
+          const [deductiblePaid, oopPaid] = await Promise.all([
+            getDeductiblePaid(claim.patientId, claim.policyId, planYearStart, claim.id, claimNetworkStatus),
+            getOopPaid(claim.patientId, claim.policyId, planYearStart, claim.id, claimNetworkStatus),
+          ]);
+          const { eligibleAmount: calculatedEligible } = calculateEligible(claim.totalAmount, claim.policy, deductiblePaid, oopPaid, claimNetworkStatus);
+
+          if (eligibleAmountOverride !== undefined && eligibleAmountOverride > calculatedEligible) {
+            res.status(400).json({ error: 'Eligible amount cannot exceed the calculated eligible amount' });
+            return;
+          }
+
+          const { eligibleAmount, deductible, reimbursable } = calculateEligible(
+            claim.totalAmount,
+            claim.policy,
+            deductiblePaid,
+            oopPaid,
+            claimNetworkStatus,
+            eligibleAmountOverride,
+          );
+
+          const eventNote =
+            eligibleAmountOverride !== undefined
+              ? `Eligible amount overridden to $${eligibleAmountOverride.toFixed(2)} (calculated: $${calculatedEligible.toFixed(2)}). ${notes ?? ''}`.trim()
+              : notes;
+
+          const finalStatus = reimbursable === 0 ? 'PAID' : 'APPROVED';
+
+          result = await prisma.claim.update({
+            where: { id: claim.id },
+            data: {
+              status: finalStatus,
+              adjusterNotes: notes,
+              eligibleAmount,
+              deductible,
+              reimbursable,
+              adjustedAmount: null,
+            },
+            include: claimInclude,
+          });
+
+          await prisma.claimEvent.create({
+            data: { claimId: claim.id, userId, action: 'APPROVED', fromStatus: claim.status, toStatus: finalStatus, note: eventNote },
+          });
+
+          if (reimbursable === 0) {
+            await prisma.payout.create({
+              data: {
+                claimId: claim.id,
+                processedBy: userId,
+                amount: 0,
+                paymentRef: `ZERO-${claim.claimNumber}`,
+                notes: 'Auto-closed: deductible and copay cover full eligible amount',
+              },
+            });
+          }
+
+          await createNotification({
+            userId: claim.patientId,
+            title: 'Claim Approved',
+            message: `Your claim ${claim.claimNumber} has been approved. Reimbursable: $${reimbursable.toFixed(2)}`,
+            type: 'success',
+            link: `/claims/${claim.id}`,
+            prefKey: 'claimApproved',
+          });
+
+          if (reimbursable > 0) {
+            const financeOfficers = await prisma.user.findMany({ where: { role: 'FINANCE_OFFICER', isActive: true }, select: { id: true } });
+            await Promise.all(
+              financeOfficers.map((f) =>
+                createNotification({
+                  userId: f.id,
+                  title: 'Claim Awaiting Payment',
+                  message: `Claim ${claim.claimNumber} has been approved and is awaiting payment. Amount: $${reimbursable.toFixed(2)}`,
+                  type: 'info',
+                  link: `/finance/payouts`,
+                  prefKey: 'claimApproved',
+                })
+              )
+            );
+          }
+
+          await sendClaimApproved(claim.patient.email, claim.claimNumber, reimbursable);
+
+          const wasAppealed = claim.status === 'APPEAL_PENDING' || !!(await prisma.claimEvent.findFirst({ where: { claimId: claim.id, action: 'APPEAL_RESOLVED' } }));
+          generateAndStoreEob(claim.id, userId, wasAppealed).catch((err: unknown) => {
+            console.error('[EOB] Failed to generate EOB for claim', claim.id, err);
+          });
+          break;
+        }
+
+        case 'REJECT': {
+          if (!['ADJUSTER', 'ADMIN'].includes(role)) {
+            res.status(403).json({ error: 'Only adjusters and admins can reject claims' });
+            return;
+          }
+          if (!['UNDER_REVIEW', 'INFO_REQUESTED', 'INFO_RESPONDED', 'APPEAL_PENDING'].includes(claim.status)) {
+            res.status(400).json({ error: 'Claim must be UNDER_REVIEW or INFO_REQUESTED to reject' });
+            return;
+          }
+
+          const { notes } = actionReq.payload as z.infer<typeof rejectClaimSchema>;
+          result = await prisma.claim.update({
+            where: { id: claim.id },
+            data: { status: 'REJECTED', adjusterNotes: notes },
+            include: claimInclude,
+          });
+
+          await prisma.claimEvent.create({
+            data: { claimId: claim.id, userId, action: 'REJECTED', fromStatus: claim.status, toStatus: 'REJECTED', note: notes },
+          });
+
+          await createNotification({
+            userId: claim.patientId,
+            title: 'Claim Rejected',
+            message: `Your claim ${claim.claimNumber} has been rejected. Reason: ${notes}`,
+            type: 'error',
+            link: `/claims/${claim.id}`,
+            prefKey: 'claimRejected',
+          });
+
+          await sendClaimRejected(claim.patient.email, claim.claimNumber, notes);
+          break;
+        }
+
+        case 'REQUEST_INFO': {
+          if (!['ADJUSTER', 'ADMIN'].includes(role)) {
+            res.status(403).json({ error: 'Only adjusters and admins can request info' });
+            return;
+          }
+          if (!['UNDER_REVIEW', 'INFO_RESPONDED', 'APPEAL_PENDING'].includes(claim.status)) {
+            res.status(400).json({ error: 'Claim must be UNDER_REVIEW to request info' });
+            return;
+          }
+
+          const { message } = actionReq.payload as z.infer<typeof requestInfoSchema>;
+          const [updated] = await Promise.all([
+            prisma.claim.update({ where: { id: claim.id }, data: { status: 'INFO_REQUESTED' }, include: claimInclude }),
+            prisma.infoRequest.create({ data: { claimId: claim.id, fromId: userId, message } }),
+            prisma.claimEvent.create({
+              data: { claimId: claim.id, userId, action: 'INFO_REQUESTED', fromStatus: claim.status, toStatus: 'INFO_REQUESTED', note: message },
+            }),
+          ]);
+
+          result = updated;
+
+          await createNotification({
+            userId: claim.patientId,
+            title: 'Information Requested',
+            message: `Additional information is required for claim ${claim.claimNumber}.`,
+            type: 'warning',
+            link: `/claims/${claim.id}`,
+            prefKey: 'infoRequested',
+          });
+          await sendInfoRequested(claim.patient.email, claim.claimNumber, message);
+          break;
+        }
+
+        case 'RESPOND_INFO': {
+          if (role !== 'PATIENT') {
+            res.status(403).json({ error: 'Only patients can respond to info requests' });
+            return;
+          }
+          if (claim.patientId !== userId) {
+            res.status(403).json({ error: 'Access denied' });
+            return;
+          }
+          if (['PAID', 'REJECTED', 'WITHDRAWN', 'APPROVED'].includes(claim.status)) {
+            res.status(400).json({ error: 'Cannot respond to a closed claim' });
+            return;
+          }
+
+          const { response, infoRequestId } = actionReq.payload as z.infer<typeof respondInfoSchema>;
+          const infoRequest = await prisma.infoRequest.findUnique({ where: { id: infoRequestId } });
+          if (!infoRequest || infoRequest.claimId !== claim.id) {
+            res.status(404).json({ error: 'Info request not found' });
+            return;
+          }
+          if (infoRequest.respondedAt) {
+            res.status(400).json({ error: 'This info request has already been responded to' });
+            return;
+          }
+
+          await prisma.infoRequest.update({ where: { id: infoRequestId }, data: { response: response ?? '', respondedAt: new Date() } });
+
+          result = await prisma.claim.update({ where: { id: claim.id }, data: { status: 'INFO_RESPONDED' }, include: claimInclude });
+
+          await prisma.claimEvent.create({
+            data: { claimId: claim.id, userId, action: 'INFO_RESPONDED', fromStatus: claim.status, toStatus: 'INFO_RESPONDED', note: response },
+          });
+
+          if (claim.adjusterId) {
+            await createNotification({
+              userId: claim.adjusterId,
+              title: 'Information Received',
+              message: `Patient has responded to info request for claim ${claim.claimNumber}.`,
+              type: 'info',
+              link: `/adjuster/claims/${claim.id}`,
+              prefKey: 'infoRequested',
+            });
+          }
+          break;
+        }
+
+        case 'RESUBMIT': {
+          if (role !== 'PATIENT') {
+            res.status(403).json({ error: 'Only patients can resubmit claims' });
+            return;
+          }
+          if (claim.patientId !== userId) {
+            res.status(403).json({ error: 'Access denied' });
+            return;
+          }
+          if (claim.status !== 'REJECTED') {
+            res.status(400).json({ error: 'Only REJECTED claims can be resubmitted' });
+            return;
+          }
+
+          result = await prisma.claim.update({
+            where: { id: claim.id },
+            data: { status: 'SUBMITTED', adjusterId: null },
+            include: claimInclude,
+          });
+
+          await prisma.claimEvent.create({
+            data: { claimId: claim.id, userId, action: 'RESUBMITTED', fromStatus: 'REJECTED', toStatus: 'SUBMITTED' },
+          });
+
+          autoAssignClaim(claim.id, claim.claimNumber, userId, claim.provider?.specialty).catch((err: unknown) => {
+            console.error('[Assignment] Auto-assign failed for claim', claim.claimNumber, err);
+          });
+
+          const adjusters = await prisma.user.findMany({ where: { role: 'ADJUSTER', isActive: true }, select: { id: true } });
+          await Promise.all(
+            adjusters.map((a) =>
+              createNotification({
+                userId: a.id,
+                title: 'Claim Resubmitted',
+                message: `Claim ${claim.claimNumber} has been resubmitted and awaits assignment.`,
+                type: 'info',
+                link: `/adjuster/claims/${claim.id}`,
+                prefKey: 'claimSubmitted',
+              })
+            )
+          );
+
+          await createNotification({
+            userId: claim.patientId,
+            title: 'Claim Resubmitted',
+            message: `Your claim ${claim.claimNumber} has been resubmitted and is awaiting review.`,
+            type: 'success',
+            link: `/claims/${claim.id}`,
+            prefKey: 'claimSubmitted',
+          });
+          break;
+        }
+
+        case 'OVERRIDE_FILING_DEADLINE': {
+          if (role !== 'ADMIN') {
+            res.status(403).json({ error: 'Only admins can override filing deadlines' });
+            return;
+          }
+          if (claim.status !== 'DRAFT') {
+            res.status(400).json({ error: 'Filing deadline override can only be applied to DRAFT claims' });
+            return;
+          }
+
+          const { reason } = actionReq.payload as z.infer<typeof overrideFilingDeadlineSchema>;
+          const deadlineCheck = checkFilingDeadline(new Date(claim.incidentDate), new Date(), claim.policy.filingDeadlineDays);
+
+          await prisma.claim.update({
+            where: { id: claim.id },
+            data: { filingDeadlineOverride: true },
+          });
+
+          await createAuditLog({
+            userId,
+            action: 'OVERRIDE_FILING_DEADLINE',
+            resource: 'Claim',
+            resourceId: claim.id,
+            details: {
+              claimNumber: claim.claimNumber,
+              reason,
+              daysSinceIncident: deadlineCheck.daysSinceIncident,
+              deadlineDays: deadlineCheck.deadlineDays,
+            },
+            ipAddress: req.ip,
+          });
+
+          res.json({
+            message: 'Filing deadline override applied. The claim may now be submitted.',
+            claimId: claim.id,
+            claimNumber: claim.claimNumber,
+          });
+          return;
+        }
+
+        case 'APPEAL': {
+          if (role !== 'PATIENT') {
+            res.status(403).json({ error: 'Only patients can appeal claims' });
+            return;
+          }
+          if (claim.patientId !== userId) {
+            res.status(403).json({ error: 'Access denied' });
+            return;
+          }
+          if (claim.status !== 'REJECTED') {
+            res.status(400).json({ error: 'Only REJECTED claims can be appealed' });
+            return;
+          }
+
+          const { reason } = actionReq.payload as z.infer<typeof initiateAppealSchema>;
+          const rejectionEvent = await prisma.claimEvent.findFirst({
+            where: { claimId: claim.id, action: 'REJECTED' },
+            orderBy: { createdAt: 'desc' },
+          });
+          const originalAdjudicatorId = rejectionEvent?.userId ?? claim.adjusterId;
+
+          result = await prisma.claim.update({
+            where: { id: claim.id },
+            data: {
+              status: 'APPEAL_PENDING',
+              appealReason: reason,
+              originalAdjudicatorId: originalAdjudicatorId ?? undefined,
+              adjusterId: null,
+            },
+            include: claimInclude,
+          });
+
+          await prisma.claimEvent.create({
+            data: {
+              claimId: claim.id,
+              userId,
+              action: 'APPEAL_INITIATED',
+              fromStatus: 'REJECTED',
+              toStatus: 'APPEAL_PENDING',
+              note: reason,
+            },
+          });
+
+          if (originalAdjudicatorId) {
+            await createNotification({
+              userId: originalAdjudicatorId,
+              title: 'Appeal Filed on Your Decision',
+              message: `The patient has filed an internal appeal on claim ${claim.claimNumber}, which you previously rejected. A different adjudicator will review it.`,
+              type: 'info',
+              link: `/adjuster/claims/${claim.id}`,
+              prefKey: 'appealPending',
+            });
+          }
+
+          const adjusters = await prisma.user.findMany({
+            where: { role: 'ADJUSTER', isActive: true, id: { not: originalAdjudicatorId ?? undefined } },
+            select: { id: true },
+          });
+          await Promise.all(
+            adjusters.map((a) =>
+              createNotification({
+                userId: a.id,
+                title: 'Appeal Pending Assignment',
+                message: `Claim ${claim.claimNumber} has entered appeal and needs a second adjudicator.`,
+                type: 'warning',
+                link: `/adjuster/claims/${claim.id}`,
+                prefKey: 'appealPending',
+              })
+            )
+          );
+
+          await createNotification({
+            userId: claim.patientId,
+            title: 'Appeal Initiated',
+            message: `Your appeal for claim ${claim.claimNumber} has been submitted and is pending review.`,
+            type: 'info',
+            link: `/claims/${claim.id}`,
+            prefKey: 'claimSubmitted',
+          });
+
+          auditAction = 'INITIATE_APPEAL';
+          break;
+        }
+
+        case 'ASSIGN_APPEAL': {
+          if (!['ADJUSTER', 'ADMIN'].includes(role)) {
+            res.status(403).json({ error: 'Only adjusters and admins can assign appeals' });
+            return;
+          }
+          if (claim.status !== 'APPEAL_PENDING') {
+            res.status(400).json({ error: 'Claim must be in APPEAL_PENDING status to assign an appeal adjudicator' });
+            return;
+          }
+
+          const { adjusterId } = actionReq.payload as z.infer<typeof assignSchema>;
+          const adjuster = await prisma.user.findUnique({ where: { id: adjusterId } });
+          if (!adjuster || adjuster.role !== 'ADJUSTER') {
+            res.status(400).json({ error: 'Invalid adjuster' });
+            return;
+          }
+
+          if (claim.originalAdjudicatorId && adjusterId === claim.originalAdjudicatorId) {
+            res.status(400).json({
+              error: 'The appeal adjudicator must be different from the adjudicator who made the original rejection decision',
+            });
+            return;
+          }
+
+          result = await prisma.claim.update({
+            where: { id: claim.id },
+            data: { adjusterId },
+            include: claimInclude,
+          });
+
+          await prisma.claimEvent.create({
+            data: {
+              claimId: claim.id,
+              userId,
+              action: 'ASSIGNED',
+              fromStatus: 'APPEAL_PENDING',
+              toStatus: 'APPEAL_PENDING',
+              note: `Appeal assigned to ${adjuster.firstName} ${adjuster.lastName}`,
+            },
+          });
+
+          await createNotification({
+            userId: adjusterId,
+            title: 'Appeal Assigned to You',
+            message: `Appeal for claim ${claim.claimNumber} has been assigned to you for review.`,
+            type: 'warning',
+            link: `/adjuster/claims/${claim.id}`,
+            prefKey: 'claimUnderReview',
+          });
+
+          auditAction = 'ASSIGN_APPEAL';
+          break;
+        }
+
+        case 'RESOLVE_APPEAL': {
+          if (role !== 'ADJUSTER') {
+            res.status(403).json({ error: 'Only adjusters can resolve appeals' });
+            return;
+          }
+          if (claim.status !== 'APPEAL_PENDING') {
+            res.status(400).json({ error: 'Claim must be in APPEAL_PENDING status to resolve an appeal' });
+            return;
+          }
+
+          if (claim.adjusterId !== userId) {
+            res.status(403).json({ error: 'Only the assigned adjudicator may resolve this appeal' });
+            return;
+          }
+
+          const { resolution, notes } = actionReq.payload as z.infer<typeof resolveAppealSchema>;
+          const toStatus = resolution === 'APPEAL_APPROVED' ? 'UNDER_REVIEW' : 'APPEAL_DENIED';
+
+          result = await prisma.claim.update({
+            where: { id: claim.id },
+            data: {
+              status: toStatus,
+              adjusterNotes: notes ?? claim.adjusterNotes,
+            },
+            include: claimInclude,
+          });
+
+          await prisma.claimEvent.create({
+            data: {
+              claimId: claim.id,
+              userId,
+              action: 'APPEAL_RESOLVED',
+              fromStatus: 'APPEAL_PENDING',
+              toStatus,
+              note: notes,
+            },
+          });
+
+          if (resolution === 'APPEAL_APPROVED') {
+            await createNotification({
+              userId: claim.patientId,
+              title: 'Appeal Approved — Claim Under Review',
+              message: `Your appeal for claim ${claim.claimNumber} was successful. The claim is now back under review.`,
+              type: 'success',
+              link: `/claims/${claim.id}`,
+              prefKey: 'claimApproved',
+            });
+          } else {
+            await createNotification({
+              userId: claim.patientId,
+              title: 'Appeal Denied',
+              message: `Your internal appeal for claim ${claim.claimNumber} was denied. You have the right to request an independent external review.`,
+              type: 'error',
+              link: `/claims/${claim.id}`,
+              prefKey: 'claimRejected',
+            });
+            await sendAppealDenied(claim.patient.email, claim.claimNumber, notes ?? '');
+          }
+
+          auditAction = 'RESOLVE_APPEAL';
+          break;
+        }
+
+        case 'EXTERNAL_PRIMARY': {
+          if (!['FINANCE_OFFICER', 'ADMIN'].includes(role)) {
+            res.status(403).json({ error: 'Only finance officers and admins can enter external primary EOB' });
+            return;
+          }
+
+          const { primaryInsurerName, primaryPaidAmount, primaryEOBDate } = actionReq.payload as z.infer<typeof externalPrimarySchema>;
+
+          result = await prisma.claim.update({
+            where: { id: claim.id },
+            data: {
+              cobDetail: {
+                upsert: {
+                  create: { primaryInsurerName, primaryPaidAmount, primaryEOBDate },
+                  update: { primaryInsurerName, primaryPaidAmount, primaryEOBDate },
+                },
+              },
+            },
+            include: claimInclude,
+          });
+
+          await createAuditLog({
+            userId,
+            action: 'EXTERNAL_PRIMARY_EOB',
+            resource: 'Claim',
+            resourceId: claim.id,
+            details: { claimNumber: claim.claimNumber, primaryInsurerName, primaryPaidAmount },
+            ipAddress: req.ip,
+          });
+
+          auditAction = 'EXTERNAL_PRIMARY';
+          break;
+        }
+
+        case 'INITIATE_SECONDARY': {
+          if (!['FINANCE_OFFICER', 'ADMIN'].includes(role)) {
+            res.status(403).json({ error: 'Only finance officers and admins can initiate secondary claims' });
+            return;
+          }
+          if (!claim.cobFlag) {
+            res.status(400).json({ error: 'This claim is not flagged as a COB scenario' });
+            return;
+          }
+          if (claim.secondaryClaimId) {
+            res.status(409).json({ error: 'A secondary claim has already been initiated for this claim' });
+            return;
+          }
+
+          const { secondaryPolicyId, notes: cobNotes } = actionReq.payload as z.infer<typeof initiateSecondarySchema>;
+          const primaryPaid = claim.status === 'PAID' && (await prisma.payout.findFirst({ where: { claimId: claim.id } }));
+          const externalPrimaryEntered = !!claim.cobDetail && claim.cobDetail.primaryPaidAmount !== undefined && claim.cobDetail.primaryPaidAmount !== null;
+
+          if (!primaryPaid && !externalPrimaryEntered) {
+            res.status(400).json({ error: 'Primary claim must be paid (or external primary EOB entered) before initiating secondary claim' });
+            return;
+          }
+
+          const secondaryUserPolicy = await prisma.userPolicy.findUnique({
+            where: { userId_policyId: { userId: claim.patientId, policyId: secondaryPolicyId } },
+            include: { policy: true },
+          });
+          if (!secondaryUserPolicy || new Date(secondaryUserPolicy.policy.expiryDate) < new Date()) {
+            res.status(400).json({ error: 'Secondary policy not found or expired for this patient' });
+            return;
+          }
+          if (secondaryUserPolicy.payerOrder !== 'SECONDARY') {
+            res.status(400).json({ error: 'The selected policy is not configured as SECONDARY payer order' });
+            return;
+          }
+
+          let primaryPatientResponsibility: number;
+          if (claim.cobDetail?.patientResponsibility !== undefined && claim.cobDetail.patientResponsibility !== null) {
+            primaryPatientResponsibility = claim.cobDetail.patientResponsibility;
+          } else if (primaryPaid) {
+            const payout = await prisma.payout.findFirst({ where: { claimId: claim.id } });
+            primaryPatientResponsibility = payout ? Math.max(0, claim.totalAmount - payout.amount) : claim.totalAmount;
+          } else {
+            primaryPatientResponsibility = claim.totalAmount;
+          }
+
+          const secondaryTotalAmount = primaryPatientResponsibility;
+          const primaryAmountPaid = claim.cobDetail?.primaryPaidAmount ?? (await prisma.payout.findFirst({ where: { claimId: claim.id } }))?.amount ?? 0;
+          const maxSecondary = Math.max(0, claim.totalAmount - primaryAmountPaid);
+
+          const planYearStart = getPlanYearStart(
+            { startDate: secondaryUserPolicy.startDate, planYearType: secondaryUserPolicy.planYearType },
+            new Date(claim.incidentDate),
+          );
+          const claimNetworkStatus = (claim.networkStatus as 'IN' | 'OUT') ?? 'IN';
+
+          const [deductiblePaid, oopPaid] = await Promise.all([
+            getDeductiblePaid(claim.patientId, secondaryPolicyId, planYearStart, undefined, claimNetworkStatus),
+            getOopPaid(claim.patientId, secondaryPolicyId, planYearStart, undefined, claimNetworkStatus),
+          ]);
+
+          const { eligibleAmount, deductible, reimbursable: rawReimbursable } = calculateEligible(
+            secondaryTotalAmount,
+            secondaryUserPolicy.policy,
+            deductiblePaid,
+            oopPaid,
+            claimNetworkStatus,
+          );
+
+          const reimbursable = Math.min(rawReimbursable, maxSecondary);
+          const secondaryClaimNumber = await generateClaimNumber();
+
+          const secondaryClaim = await prisma.claim.create({
+            data: {
+              claimNumber: secondaryClaimNumber,
+              patientId: claim.patientId,
+              policyId: secondaryPolicyId,
+              type: claim.type,
+              description: `Secondary COB claim for ${claim.claimNumber}${cobNotes ? ` — ${cobNotes}` : ''}`,
+              incidentDate: claim.incidentDate,
+              totalAmount: secondaryTotalAmount,
+              eligibleAmount,
+              deductible,
+              reimbursable,
+              status: 'SUBMITTED',
+              networkStatus: claim.networkStatus ?? 'IN',
+              cobFlag: true,
+              planYearStart,
+              ...(claim.providerId ? { providerId: claim.providerId } : {}),
+            },
+            include: claimInclude,
+          });
+
+          await prisma.claim.update({
+            where: { id: claim.id },
+            data: { secondaryClaimId: secondaryClaim.id },
+          });
+
+          await prisma.claimEvent.create({
+            data: {
+              claimId: secondaryClaim.id,
+              userId,
+              action: 'SUBMITTED',
+              fromStatus: 'DRAFT',
+              toStatus: 'SUBMITTED',
+              note: `COB secondary claim initiated from primary claim ${claim.claimNumber}`,
+            },
+          });
+
+          result = secondaryClaim;
+          auditAction = 'COB_INITIATE_SECONDARY';
+          break;
+        }
+
+        case 'REASSIGN': {
+          if (role !== 'ADMIN') {
+            res.status(403).json({ error: 'Only admins can reassign claims' });
+            return;
+          }
+
+          const { adjusterId } = actionReq.payload as z.infer<typeof reassignSchema>;
+          const adjuster = await prisma.user.findUnique({ where: { id: adjusterId } });
+          if (!adjuster || adjuster.role !== 'ADJUSTER' || !adjuster.isActive) {
+            res.status(400).json({ error: 'Invalid or inactive adjuster' });
+            return;
+          }
+
+          const previousAdjusterId = claim.assignedAdjusterId;
+
+          await prisma.claim.update({
+            where: { id: claim.id },
+            data: { assignedAdjusterId: adjusterId, status: 'UNDER_REVIEW' },
+          });
+
+          await prisma.claimEvent.create({
+            data: {
+              claimId: claim.id,
+              userId,
+              action: 'REASSIGNED',
+              fromStatus: claim.status,
+              toStatus: 'UNDER_REVIEW',
+              note: `Manually reassigned to ${adjuster.firstName} ${adjuster.lastName} by admin`,
+            },
+          });
+
+          await createNotification({
+            userId: adjusterId,
+            title: 'Claim Assigned to You',
+            message: `Claim ${claim.claimNumber} has been assigned to you.`,
+            type: 'info',
+            link: `/adjuster/claims/${claim.id}`,
+            prefKey: 'claimUnderReview',
+          });
+
+          await createAuditLog({
+            userId,
+            action: 'ADMIN_REASSIGN_CLAIM',
+            resource: 'Claim',
+            resourceId: claim.id,
+            details: { claimNumber: claim.claimNumber, from: previousAdjusterId, to: adjusterId },
+            ipAddress: req.ip,
+          });
+
+          result = await prisma.claim.findUnique({ where: { id: claim.id }, include: claimInclude });
+          auditAction = 'REASSIGN';
+          break;
+        }
+
+        case 'ADJUDICATE_LINE': {
+          if (!['ADJUSTER', 'ADMIN'].includes(role)) {
+            res.status(403).json({ error: 'Only adjusters and admins can adjudicate lines' });
+            return;
+          }
+          if (!['UNDER_REVIEW', 'INFO_REQUESTED', 'INFO_RESPONDED'].includes(claim.status)) {
+            res.status(400).json({ error: 'Claim must be UNDER_REVIEW or INFO_REQUESTED to adjudicate lines' });
+            return;
+          }
+          if (claim.lines.length === 0) {
+            res.status(400).json({ error: 'This claim has no line items' });
+            return;
+          }
+
+          const { lineId, adjudicationStatus, allowedAmount, denialReason, adjudicatorNote } = actionReq.payload as z.infer<typeof adjudicateLineSchema> & {
+            lineId: string;
+          };
+
+          const line = claim.lines.find((l) => l.id === lineId);
+          if (!line) {
+            res.status(404).json({ error: 'Line not found on this claim' });
+            return;
+          }
+
+          if (adjudicationStatus === 'REDUCED' && allowedAmount === undefined) {
+            res.status(400).json({ error: 'allowedAmount is required when status is REDUCED' });
+            return;
+          }
+          if (adjudicationStatus === 'DENIED' && !denialReason) {
+            res.status(400).json({ error: 'denialReason is required when status is DENIED' });
+            return;
+          }
+
+          if (adjudicationStatus === 'APPROVED') {
+            const resolvedAllowed = allowedAmount ?? line.billedAmount;
+            await prisma.claimLine.update({
+              where: { id: line.id },
+              data: { adjudicationStatus: 'APPROVED', allowedAmount: resolvedAllowed, adjudicatorNote: adjudicatorNote ?? null },
+            });
+          } else {
+            await prisma.claimLine.update({
+              where: { id: line.id },
+              data: {
+                adjudicationStatus,
+                allowedAmount: adjudicationStatus === 'REDUCED' ? allowedAmount! : null,
+                denialReason: denialReason ?? null,
+                adjudicatorNote: adjudicatorNote ?? null,
+              },
+            });
+          }
+
+          const updatedLines = await prisma.claimLine.findMany({
+            where: { claimId: claim.id },
+            orderBy: { lineNumber: 'asc' },
+          });
+
+          const totalAllowed = updatedLines
+            .filter((l) => l.adjudicationStatus === 'APPROVED' || l.adjudicationStatus === 'REDUCED')
+            .reduce((sum, l) => sum + (l.allowedAmount ?? 0), 0);
+
+          const newClaimStatus = deriveClaimStatusFromLines(updatedLines);
+
+          let eligibilityUpdate: { eligibleAmount?: number; deductible?: number; reimbursable?: number; totalAllowed?: number } = {
+            totalAllowed,
+          };
+
+          if (newClaimStatus !== 'UNDER_REVIEW') {
+            const amountForElig = totalAllowed > 0 ? totalAllowed : 0;
+            const planYearStart = claim.planYearStart ?? new Date(new Date().getFullYear(), 0, 1);
+            const claimNetworkStatus = (claim.networkStatus as 'IN' | 'OUT') ?? 'IN';
+            const [deductiblePaid, oopPaid] = await Promise.all([
+              getDeductiblePaid(claim.patientId, claim.policyId, planYearStart, claim.id, claimNetworkStatus),
+              getOopPaid(claim.patientId, claim.policyId, planYearStart, claim.id, claimNetworkStatus),
+            ]);
+            const { eligibleAmount, deductible, reimbursable } = calculateEligible(
+              amountForElig,
+              claim.policy,
+              deductiblePaid,
+              oopPaid,
+              claimNetworkStatus,
+            );
+            eligibilityUpdate = { ...eligibilityUpdate, eligibleAmount, deductible, reimbursable };
+          }
+
+          await prisma.claim.update({
+            where: { id: claim.id },
+            data: { status: newClaimStatus, ...eligibilityUpdate },
+          });
+
+          await prisma.claimEvent.create({
+            data: {
+              claimId: claim.id,
+              userId,
+              action: `LINE_${adjudicationStatus}`,
+              fromStatus: claim.status,
+              toStatus: newClaimStatus,
+              lineId: line.id,
+              note: adjudicatorNote ?? denialReason ?? null,
+            },
+          });
+
+          result = await prisma.claim.findUnique({ where: { id: claim.id }, include: claimInclude });
+          auditAction = 'ADJUDICATE_LINE';
+          break;
+        }
+
+        default: {
+          const _exhaustive: never = actionReq;
+          return _exhaustive;
+        }
+      }
+
+      // Create audit log for non-filing-deadline actions (they have their own audit logging)
+      if ((actionReq as any).action !== 'OVERRIDE_FILING_DEADLINE') {
+        await createAuditLog({
+          userId,
+          action: auditAction,
+          resource: 'Claim',
+          resourceId: claimId,
+          details: { claimNumber: claim.claimNumber, action: (actionReq as any).action },
+          ipAddress: req.ip,
+        });
+      }
+
+      res.json(parseDiagnosisCodes(result!));
+    } catch (err) {
+      next(err);
+    }
+  }
 );
 
 export default router;
