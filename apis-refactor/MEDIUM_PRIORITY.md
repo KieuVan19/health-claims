@@ -228,7 +228,7 @@ DELETE /documents/:id                       (flat, no change)
 
 ## Task #9: Response Schema Documentation
 
-**Status:** ⬜ TODO
+**Status:** ✅ DONE (completed via PR #28 — `docs/openapi-schemas`)
 
 **Effort:** 2-3 hours | **Complexity:** Low
 
