@@ -44,7 +44,7 @@ export const getClaimTypeSummary = async (id: string): Promise<ClaimTypeSummary>
 }
 
 export const getDocuments = async (claimId: string): Promise<Document[]> => {
-  const response = await apiClient.get<Document[]>(`/documents/claims/${claimId}`)
+  const response = await apiClient.get<Document[]>(`/documents?claimId=${claimId}`)
   return response.data
 }
 

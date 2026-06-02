@@ -4,14 +4,14 @@ import { Document } from '../types'
 export const uploadDocuments = async (claimId: string, files: File[]): Promise<Document[]> => {
   const formData = new FormData()
   files.forEach((file) => formData.append('documents', file))
-  const response = await apiClient.post<Document[]>(`/documents/claims/${claimId}/upload`, formData, {
+  const response = await apiClient.post<Document[]>(`/documents/upload?claimId=${claimId}`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   })
   return response.data
 }
 
 export const getDocuments = async (claimId: string): Promise<Document[]> => {
-  const response = await apiClient.get<Document[]>(`/documents/claims/${claimId}`)
+  const response = await apiClient.get<Document[]>(`/documents?claimId=${claimId}`)
   return response.data
 }
 
