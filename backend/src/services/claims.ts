@@ -97,7 +97,7 @@ export function calculateEligible(
 
 /**
  * Sum the deductible already applied to APPROVED/PAID claims for this patient, policy, and plan year.
- * Filtered to the same network tier so IN and OON accumulators remain separate.
+ * Cumulative across all networks (IN and OON count toward the same deductible).
  * Optionally excludes a specific claim (used when recalculating an existing claim's own eligibility).
  */
 export async function getDeductiblePaid(
@@ -105,14 +105,13 @@ export async function getDeductiblePaid(
   policyId: string,
   planYearStart: Date,
   excludeClaimId?: string,
-  networkStatus: NetworkStatus = 'IN',
+  networkStatus?: NetworkStatus,
 ): Promise<number> {
   const result = await prisma.claim.aggregate({
     _sum: { deductible: true },
     where: {
       patientId,
       policyId,
-      networkStatus,
       status: { in: ['SUBMITTED', 'UNDER_REVIEW', 'INFO_REQUESTED', 'APPROVED', 'PARTIALLY_APPROVED', 'PAID'] },
       planYearStart: { gte: planYearStart },
       ...(excludeClaimId ? { NOT: { id: excludeClaimId } } : {}),
@@ -124,7 +123,7 @@ export async function getDeductiblePaid(
 /**
  * Sum total cost-sharing (deductible applied + copay applied) across APPROVED/PAID claims
  * for this patient, policy, and plan year.  This is the OOP accumulator.
- * Filtered to the same network tier so IN and OON accumulators remain separate.
+ * Cumulative across all networks (IN and OON count toward the same OOP max).
  * Copay paid = eligibleAmount - deductible - reimbursable (all stored on the claim).
  * Optionally excludes a specific claim (for recalculation scenarios).
  */
@@ -133,13 +132,12 @@ export async function getOopPaid(
   policyId: string,
   planYearStart: Date,
   excludeClaimId?: string,
-  networkStatus: NetworkStatus = 'IN',
+  networkStatus?: NetworkStatus,
 ): Promise<number> {
   const claims = await prisma.claim.findMany({
     where: {
       patientId,
       policyId,
-      networkStatus,
       status: { in: ['SUBMITTED', 'UNDER_REVIEW', 'INFO_REQUESTED', 'APPROVED', 'PARTIALLY_APPROVED', 'PAID'] },
       planYearStart: { gte: planYearStart },
       ...(excludeClaimId ? { NOT: { id: excludeClaimId } } : {}),
