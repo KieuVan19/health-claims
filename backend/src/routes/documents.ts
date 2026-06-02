@@ -40,10 +40,9 @@ const router = Router();
  *         description: Documents uploaded
  */
 router.post(
-  '/claims/:claimId/upload',
+  '/upload',
   authenticate,
   requireRole('PATIENT'),
-  requireOwnership('claim'),
   (req: Request, res: Response, next: NextFunction): void => {
     uploadDocuments(req, res, (err) => {
       if (err) {
@@ -55,7 +54,12 @@ router.post(
   },
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { claimId } = req.params;
+      const { claimId } = req.query as Record<string, string>;
+
+      if (!claimId) {
+        res.status(400).json({ error: 'claimId query parameter is required' });
+        return;
+      }
 
       const files = req.files as Express.Multer.File[];
       if (!files || files.length === 0) {
@@ -104,11 +108,16 @@ router.post(
  *         description: List of documents
  */
 router.get(
-  '/claims/:claimId',
+  '/',
   authenticate,
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { claimId } = req.params;
+      const { claimId } = req.query as Record<string, string>;
+
+      if (!claimId) {
+        res.status(400).json({ error: 'claimId query parameter is required' });
+        return;
+      }
 
       const claim = await prisma.claim.findUnique({ where: { id: claimId } });
       if (!claim) {
@@ -123,7 +132,7 @@ router.get(
       }
 
       const documents = await prisma.document.findMany({
-        where: { claimId },
+        where: { claimId, deletedAt: null },
         orderBy: { createdAt: 'desc' },
       });
 
@@ -236,7 +245,7 @@ router.delete(
         fs.unlinkSync(filePath);
       }
 
-      await prisma.document.delete({ where: { id: document.id } });
+      await prisma.document.update({ where: { id: document.id }, data: { deletedAt: new Date() } });
 
       res.json({ message: 'Document deleted successfully' });
     } catch (err) {

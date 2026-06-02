@@ -7,7 +7,7 @@ import { requireRole } from '../middleware/roles';
 import { validate } from '../middleware/validate';
 import { createAuditLog, logRead } from '../utils/audit';
 import { paginatedResponse } from '../utils/response';
-import { buildSearchWhere } from '../utils/filters';
+import { buildSearchWhere, parseDateRange } from '../utils/filters';
 import { USER_ROLES, USER_ROLES_ARRAY } from '../constants/enums';
 
 const router = Router();
@@ -314,9 +314,40 @@ router.delete(
  * /admin/audit-logs:
  *   get:
  *     tags: [Admin]
- *     summary: Get paginated audit logs
+ *     summary: Get paginated audit logs with optional filters
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: userId
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: action
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: resource
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: dateFrom
+ *         schema:
+ *           type: string
+ *           format: date
+ *       - in: query
+ *         name: dateTo
+ *         schema:
+ *           type: string
+ *           format: date
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
  *     responses:
  *       200:
  *         description: Paginated audit logs
@@ -331,6 +362,8 @@ router.get(
         userId,
         action,
         resource,
+        dateFrom,
+        dateTo,
       } = req.query as Record<string, string>;
 
       const pageNum = Math.max(1, parseInt(page, 10));
@@ -341,6 +374,9 @@ router.get(
       if (userId) where['userId'] = userId;
       if (action) where['action'] = { contains: action };
       if (resource) where['resource'] = resource;
+
+      const dateFilter = parseDateRange(dateFrom, dateTo);
+      if (dateFilter) where['createdAt'] = dateFilter;
 
       const [total, logs] = await Promise.all([
         prisma.auditLog.count({ where }),
