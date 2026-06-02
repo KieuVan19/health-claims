@@ -201,7 +201,7 @@ function computeSlaMeta(
  *         name: status
  *         schema:
  *           type: string
- *           enum: [DRAFT, SUBMITTED, UNDER_REVIEW, INFO_REQUESTED, INFO_RESPONDED, APPROVED, REJECTED, PAID, WITHDRAWN]
+ *           enum: [DRAFT, SUBMITTED, UNDER_REVIEW, INFO_REQUESTED, INFO_RESPONDED, APPROVED, PARTIALLY_APPROVED, REJECTED, PAID, WITHDRAWN, APPEAL_PENDING, APPEAL_DENIED]
  *       - in: query
  *         name: type
  *         schema:
@@ -232,13 +232,37 @@ function computeSlaMeta(
  *         schema:
  *           type: string
  *           enum: [asc, desc]
+ *       - in: query
+ *         name: dateFrom
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *       - in: query
+ *         name: dateTo
+ *         schema:
+ *           type: string
+ *           format: date-time
  *     responses:
  *       200:
- *         description: Paginated list of claims
+ *         description: Paginated list of claims with SLA metadata
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/PaginatedResponse'
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     allOf:
+ *                       - $ref: '#/components/schemas/Claim'
+ *                       - type: object
+ *                         properties:
+ *                           daysOpen: { type: integer }
+ *                           submittedAt: { type: string, format: date-time, nullable: true }
+ *                           ageDays: { type: integer, nullable: true }
+ *                           slaStatus: { type: string, enum: [ON_TRACK, AT_RISK, BREACHED], nullable: true }
+ *                 pagination:
+ *                   $ref: '#/components/schemas/Pagination'
  *       401:
  *         description: Unauthorized
  */
@@ -395,16 +419,27 @@ router.get(
  *                 type: string
  *                 enum: [HOSPITALIZATION, OUTPATIENT, DENTAL, VISION, PHARMACY]
  *               description: { type: string }
- *               incidentDate: { type: string, format: date }
+ *               incidentDate: { type: string, format: date-time }
  *               totalAmount: { type: number }
+ *               providerId: { type: string, nullable: true }
+ *               diagnosisCodes: { type: array, items: { type: string } }
+ *               lines: { type: array, items: { $ref: '#/components/schemas/ClaimLine' } }
  *     responses:
  *       201:
- *         description: Draft claim created
+ *         description: Draft claim created with events, documents, and line items
  *         content:
  *           application/json:
  *             schema:
- *               type: object
- *               description: Claim object with events, documents, and line items
+ *               allOf:
+ *                 - $ref: '#/components/schemas/Claim'
+ *                 - type: object
+ *                   properties:
+ *                     patient: { $ref: '#/components/schemas/User' }
+ *                     policy: { $ref: '#/components/schemas/Policy' }
+ *                     provider: { type: object, nullable: true }
+ *                     documents: { type: array, items: { $ref: '#/components/schemas/Document' } }
+ *                     lines: { type: array, items: { $ref: '#/components/schemas/ClaimLine' } }
+ *                     events: { type: array, items: { $ref: '#/components/schemas/ClaimEvent' } }
  *       400:
  *         description: Validation error or coverage exceeded
  *       409:
