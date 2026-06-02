@@ -9,7 +9,7 @@ import { createAuditLog } from '../utils/audit';
 import { createNotification } from '../utils/notification';
 import { sendClaimPaid } from '../services/email';
 import { applyRecoupment, markOffsets } from '../services/overpayments';
-import { paginatedResponse } from '../utils/response';
+import { createPaginatedResponse } from '../utils/pagination';
 import { parseDateRange, buildSearchWhere } from '../utils/filters';
 import { CLAIM_STATUSES } from '../constants/enums';
 
@@ -113,7 +113,7 @@ router.get(
         }),
       ]);
 
-      res.json(paginatedResponse(claims, total, pageNum, limitNum));
+      res.json(createPaginatedResponse(claims, total, pageNum, limitNum));
     } catch (err) {
       next(err);
     }

@@ -6,7 +6,7 @@ import { requireRole } from '../middleware/roles';
 import { validate } from '../middleware/validate';
 import { createAuditLog } from '../utils/audit';
 import { createNotification } from '../utils/notification';
-import { paginatedResponse } from '../utils/response';
+import { createPaginatedResponse } from '../utils/pagination';
 import { parseDateRange } from '../utils/filters';
 import { OVERPAYMENT_REASONS, OVERPAYMENT_REASONS_ARRAY, OVERPAYMENT_STATUSES, OVERPAYMENT_STATUSES_ARRAY } from '../constants/enums';
 
@@ -88,7 +88,7 @@ router.get(
         }),
       ]);
 
-      res.json(paginatedResponse(overpayments, total, pageNum, limitNum));
+      res.json(createPaginatedResponse(overpayments, total, pageNum, limitNum));
     } catch (err) {
       next(err);
     }
