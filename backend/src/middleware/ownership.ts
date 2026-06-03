@@ -59,7 +59,28 @@ async function getResourceById(resourceType: ResourceType, id: string): Promise<
         where: { id },
         include: {
           patient: { select: { id: true, email: true, firstName: true, lastName: true } },
+          adjuster: { select: { id: true, email: true, firstName: true, lastName: true } },
+          assignedAdjuster: { select: { id: true, email: true, firstName: true, lastName: true } },
           policy: true,
+          provider: true,
+          documents: true,
+          lines: { orderBy: { lineNumber: 'asc' as const } },
+          events: {
+            include: { user: { select: { id: true, firstName: true, lastName: true, role: true } } },
+            orderBy: { createdAt: 'asc' as const },
+          },
+          infoRequests: {
+            include: { from: { select: { id: true, firstName: true, lastName: true, role: true } } },
+            orderBy: { createdAt: 'desc' as const },
+          },
+          payout: true,
+          cobDetail: true,
+          secondaryClaim: {
+            select: { id: true, claimNumber: true, status: true, reimbursable: true, payout: true },
+          },
+          primaryClaim: {
+            select: { id: true, claimNumber: true, status: true, reimbursable: true, payout: true },
+          },
         },
       });
     case 'document':

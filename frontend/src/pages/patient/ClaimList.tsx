@@ -230,7 +230,7 @@ const ClaimList: React.FC = () => {
                     >
                       <td className="table-cell">
                         <Link
-                          to={`/claims/${claim.id}`}
+                          to={`/patient/claims/${claim.id}`}
                           className="font-medium text-blue-600 hover:text-blue-800 hover:underline"
                         >
                           {claim.claimNumber}
@@ -257,7 +257,7 @@ const ClaimList: React.FC = () => {
                       </td>
                       <td className="table-cell">
                         <Link
-                          to={`/claims/${claim.id}`}
+                          to={`/patient/claims/${claim.id}`}
                           className="flex items-center gap-1 text-blue-600 hover:text-blue-700 text-sm font-medium"
                           data-testid="view-claim-btn"
                         >
