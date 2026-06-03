@@ -241,7 +241,7 @@ const ClaimDetail: React.FC = () => {
             {claim.status === 'DRAFT' && (
               <>
                 <Link
-                  to={`/claims/${claim.id}/edit`}
+                  to={`/patient/claims/${claim.id}/edit`}
                   className="btn-secondary"
                   data-testid="edit-claim-btn"
                 >
