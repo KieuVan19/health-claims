@@ -109,6 +109,7 @@ const FinanceReports: React.FC = () => {
             max={pendingTo}
             disabled={!isPaid}
             onChange={e => setPendingFrom(e.target.value)}
+            data-testid="report-from-date"
           />
           <label className={`text-sm ${isPaid ? 'text-gray-600' : 'text-gray-300'}`} htmlFor="to-date">To</label>
           <input
@@ -120,6 +121,7 @@ const FinanceReports: React.FC = () => {
             max={today}
             disabled={!isPaid}
             onChange={e => setPendingTo(e.target.value)}
+            data-testid="report-to-date"
           />
           <label className="text-sm text-gray-600 ml-2" htmlFor="status-filter">Status</label>
           <select
@@ -127,6 +129,7 @@ const FinanceReports: React.FC = () => {
             className="form-input py-1.5 text-sm w-auto"
             value={statusFilter}
             onChange={e => handleStatusChange(e.target.value as StatusFilter)}
+            data-testid="report-status-filter"
           >
             <option value="APPROVED">Pending</option>
             <option value="PAID">Paid</option>
@@ -136,6 +139,7 @@ const FinanceReports: React.FC = () => {
             className="btn-primary py-1.5 px-4 text-sm disabled:opacity-40 disabled:cursor-not-allowed"
             onClick={handleApply}
             disabled={!isPaid}
+            data-testid="report-apply-btn"
           >
             Apply
           </button>
@@ -144,6 +148,8 @@ const FinanceReports: React.FC = () => {
             onClick={handleReset}
             disabled={!isPaid}
             title="Clear filter"
+            data-testid="report-reset-btn"
+            aria-label="reset-filter"
           >
             <X className="h-4 w-4" />
           </button>
@@ -186,7 +192,7 @@ const FinanceReports: React.FC = () => {
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                   {claims.map((claim) => (
-                    <tr key={claim.id} className="hover:bg-gray-50 transition-colors">
+                    <tr key={claim.id} className="hover:bg-gray-50 transition-colors" data-testid="finance-report-row">
                       <td className="py-3 pr-4 font-mono text-xs text-gray-700 whitespace-nowrap">
                         {claim.claimNumber}
                       </td>

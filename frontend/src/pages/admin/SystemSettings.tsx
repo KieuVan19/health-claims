@@ -9,9 +9,10 @@ interface ToggleRowProps {
   checked: boolean
   disabled: boolean
   onChange: (checked: boolean) => void
+  testId?: string
 }
 
-const ToggleRow: React.FC<ToggleRowProps> = ({ label, description, checked, disabled, onChange }) => (
+const ToggleRow: React.FC<ToggleRowProps> = ({ label, description, checked, disabled, onChange, testId }) => (
   <div className="flex items-start justify-between gap-4">
     <div>
       <p className="text-sm font-medium text-gray-800">{label}</p>
@@ -23,6 +24,7 @@ const ToggleRow: React.FC<ToggleRowProps> = ({ label, description, checked, disa
       aria-label={label}
       disabled={disabled}
       onClick={() => onChange(!checked)}
+      data-testid={testId}
       className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-60 ${
         checked ? 'bg-blue-600' : 'bg-gray-200'
       }`}
@@ -119,6 +121,7 @@ const SystemSettings: React.FC = () => {
           checked={autoAssign}
           disabled={saving === 'autoAssignEnabled'}
           onChange={(v) => handleToggle('autoAssignEnabled', v, setAutoAssign)}
+          testId="system-setting-autoAssignEnabled-toggle"
         />
       </Section>
 
@@ -133,6 +136,7 @@ const SystemSettings: React.FC = () => {
           checked={diagnosisCodes}
           disabled={saving === 'diagnosisCodesEnabled'}
           onChange={(v) => handleToggle('diagnosisCodesEnabled', v, setDiagnosisCodes)}
+          testId="system-setting-diagnosisCodesEnabled-toggle"
         />
         <div className="border-t border-gray-100 pt-6">
           <ToggleRow
@@ -141,6 +145,7 @@ const SystemSettings: React.FC = () => {
             checked={cptCodes}
             disabled={saving === 'cptCodesEnabled'}
             onChange={(v) => handleToggle('cptCodesEnabled', v, setCptCodes)}
+            testId="system-setting-cptCodesEnabled-toggle"
           />
         </div>
       </Section>
@@ -156,6 +161,7 @@ const SystemSettings: React.FC = () => {
           checked={outOfNetwork}
           disabled={saving === 'outOfNetworkEnabled'}
           onChange={(v) => handleToggle('outOfNetworkEnabled', v, setOutOfNetwork)}
+          testId="system-setting-outOfNetworkEnabled-toggle"
         />
       </Section>
     </div>
