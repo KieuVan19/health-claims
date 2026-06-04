@@ -133,7 +133,7 @@ const FinanceDashboard: React.FC = () => {
                   key={claim.id}
                   to={`/finance/payouts/${claim.id}`}
                   className="flex items-center justify-between px-5 py-3.5 hover:bg-gray-50 transition-colors"
-                  data-testid="pending-payout-row"
+                  data-testid="payout-row"
                 >
                   <div>
                     <p className="text-sm font-medium text-blue-600 hover:underline">{claim.claimNumber}</p>
@@ -183,7 +183,7 @@ const FinanceDashboard: React.FC = () => {
                   key={claim.id}
                   to={`/finance/payouts/${claim.id}`}
                   className="flex items-center justify-between px-5 py-3.5 hover:bg-gray-50 transition-colors"
-                  data-testid="recent-payment-row"
+                  data-testid="recent-payout-row"
                 >
                   <div>
                     <p className="text-sm font-medium text-blue-600 hover:underline">{claim.claimNumber}</p>

@@ -325,7 +325,7 @@ const ClaimQueue: React.FC = () => {
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {claims.map((claim) => (
-                    <tr key={claim.id} className="hover:bg-gray-50 transition-colors" data-testid="queue-claim-row">
+                    <tr key={claim.id} className="hover:bg-gray-50 transition-colors" data-testid="claim-row">
                       <td className="table-cell">
                         <Link
                           to={`/adjuster/claims/${claim.id}`}

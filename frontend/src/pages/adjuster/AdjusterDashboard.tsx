@@ -152,7 +152,7 @@ const AdjusterDashboard: React.FC = () => {
                   key={claim.id}
                   to={`/adjuster/claims/${claim.id}`}
                   className="flex items-center justify-between px-5 py-3.5 hover:bg-gray-50 transition-colors group"
-                  data-testid="adjuster-claim-row"
+                  data-testid="claim-row"
                 >
                   <div>
                     <p className="text-sm font-medium text-gray-900">{claim.claimNumber}</p>
