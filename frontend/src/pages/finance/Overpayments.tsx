@@ -180,12 +180,13 @@ const Overpayments: React.FC = () => {
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {overpayments.map((op) => (
-                    <tr key={op.id} className="hover:bg-gray-50 transition-colors" data-testid="overpayment-row">
+                    <tr key={op.id} className="hover:bg-gray-50 transition-colors" data-testid={`overpayment-row-${op.id}`}>
                       <td className="table-cell">
                         {op.claim ? (
                           <Link
                             to={`/finance/payouts/${op.claimId}`}
                             className="font-medium text-blue-600 hover:text-blue-800 hover:underline"
+                            data-testid={`overpayment-claim-${op.id}`}
                           >
                             {op.claim.claimNumber}
                           </Link>
@@ -193,26 +194,26 @@ const Overpayments: React.FC = () => {
                           <span className="text-gray-400">—</span>
                         )}
                       </td>
-                      <td className="table-cell text-gray-700">
+                      <td className="table-cell text-gray-700" data-testid={`overpayment-patient-${op.id}`}>
                         {op.claim?.patient
                           ? `${op.claim.patient.firstName} ${op.claim.patient.lastName}`
                           : '—'}
                       </td>
-                      <td className="table-cell text-gray-600">
+                      <td className="table-cell text-gray-600" data-testid={`overpayment-reason-${op.id}`}>
                         {REASON_LABELS[op.reason]}
                       </td>
-                      <td className="table-cell">
+                      <td className="table-cell" data-testid={`overpayment-status-${op.id}`}>
                         <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[op.status]}`}>
                           {STATUS_LABELS[op.status]}
                         </span>
                       </td>
-                      <td className="table-cell text-right font-semibold text-red-600">
+                      <td className="table-cell text-right font-semibold text-red-600" data-testid={`overpayment-amount-${op.id}`}>
                         {formatCurrency(op.overpaidAmount)}
                       </td>
-                      <td className="table-cell font-mono text-xs text-gray-500">
+                      <td className="table-cell font-mono text-xs text-gray-500" data-testid={`overpayment-ref-${op.id}`}>
                         {op.originalPayout?.paymentRef ?? '—'}
                       </td>
-                      <td className="table-cell text-gray-500 text-sm">
+                      <td className="table-cell text-gray-500 text-sm" data-testid={`overpayment-flagged-date-${op.id}`}>
                         {format(new Date(op.createdAt), 'MMM d, yyyy')}
                       </td>
                       <td className="table-cell">
