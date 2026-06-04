@@ -132,6 +132,7 @@ const PatientDashboard: React.FC = () => {
             <Link
               to="/patient/claims"
               className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
+              data-testid="view-all-claims-link"
             >
               View all <ChevronRight className="h-4 w-4" />
             </Link>
@@ -209,7 +210,7 @@ const PatientDashboard: React.FC = () => {
           </div>
 
           {/* Policy */}
-          <div className="card p-5">
+          <div className="card p-5" data-testid="policy-card">
             <div className="flex items-center gap-2 mb-3">
               <Shield className={`h-5 w-5 ${isPolicyExpired ? 'text-gray-400' : 'text-blue-600'}`} />
               <h3 className="text-sm font-semibold text-gray-900">
@@ -251,6 +252,7 @@ const PatientDashboard: React.FC = () => {
                 <Link
                   to="/patient/policies"
                   className="mt-2 text-xs text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
+                  data-testid="view-policy-details-link"
                 >
                   View details <ChevronRight className="h-3 w-3" />
                 </Link>

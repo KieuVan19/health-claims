@@ -865,52 +865,52 @@ const NewClaim: React.FC = () => {
             <div className="rounded-xl bg-gray-50 border border-gray-200 p-4">
               <h3 className="text-sm font-semibold text-gray-700 mb-3">Claim Summary</h3>
               <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
+                <div className="flex justify-between" data-testid="claim-type-summary">
                   <span className="text-gray-600">Claim Type</span>
-                  <span className="font-medium">{selectedType?.replace('_', ' ')}</span>
+                  <span className="font-medium" data-testid="claim-type-value">{selectedType?.replace('_', ' ')}</span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex justify-between" data-testid="policy-summary">
                   <span className="text-gray-600">Policy</span>
-                  <span className="font-medium">{selectedPolicy?.name ?? getValues('policyId')}</span>
+                  <span className="font-medium" data-testid="policy-value">{selectedPolicy?.name ?? getValues('policyId')}</span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex justify-between" data-testid="provider-summary">
                   <span className="text-gray-600">Treating Provider</span>
-                  <span className="font-medium">{selectedProvider ? selectedProvider.name : '—'}</span>
+                  <span className="font-medium" data-testid="provider-value">{selectedProvider ? selectedProvider.name : '—'}</span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex justify-between" data-testid="incident-date-summary">
                   <span className="text-gray-600">Incident Date</span>
-                  <span className="font-medium">
+                  <span className="font-medium" data-testid="incident-date-value">
                     {getValues('incidentDate')
                       ? new Date(getValues('incidentDate')).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
                       : '—'}
                   </span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex justify-between" data-testid="total-amount-summary">
                   <span className="text-gray-600">Total Amount</span>
-                  <span className="font-medium">{formatCurrency(Number(getValues('totalAmount')))}</span>
+                  <span className="font-medium" data-testid="total-amount-value">{formatCurrency(Number(getValues('totalAmount')))}</span>
                 </div>
                 {eligibility && (
-                  <div className="flex justify-between pt-1 border-t border-gray-200">
+                  <div className="flex justify-between pt-1 border-t border-gray-200" data-testid="reimbursable-summary">
                     <span className="text-gray-700 font-medium">Est. Reimbursable</span>
-                    <span className="font-bold text-green-600">{formatCurrency(eligibility.reimbursable)}</span>
+                    <span className="font-bold text-green-600" data-testid="reimbursable-value">{formatCurrency(eligibility.reimbursable)}</span>
                   </div>
                 )}
               </div>
             </div>
 
-            <div className="rounded-xl bg-gray-50 border border-gray-200 p-4">
+            <div className="rounded-xl bg-gray-50 border border-gray-200 p-4" data-testid="description-summary-card">
               <h3 className="text-sm font-semibold text-gray-700 mb-2">Description</h3>
-              <p className="text-sm text-gray-700">{getValues('description')}</p>
+              <p className="text-sm text-gray-700" data-testid="description-value">{getValues('description')}</p>
             </div>
 
             {diagnosisCodesEnabled && getValidDiagnosisCodes().length > 0 && (
-              <div className="rounded-xl bg-gray-50 border border-gray-200 p-4">
+              <div className="rounded-xl bg-gray-50 border border-gray-200 p-4" data-testid="diagnosis-codes-summary-card">
                 <h3 className="text-sm font-semibold text-gray-700 mb-2">
                   Diagnosis Codes ({getValidDiagnosisCodes().length})
                 </h3>
-                <div className="space-y-1">
+                <div className="space-y-1" data-testid="diagnosis-codes-list">
                   {getValidDiagnosisCodes().map((code, i) => (
-                    <div key={i} className="flex items-center gap-2 text-sm">
+                    <div key={i} className="flex items-center gap-2 text-sm" data-testid={`diagnosis-code-${i}`}>
                       <span className="text-xs text-gray-400 w-20 shrink-0">{i === 0 ? 'Primary' : `Secondary ${i}`}</span>
                       <span className="font-mono font-medium text-gray-900">{code}</span>
                     </div>
@@ -920,12 +920,12 @@ const NewClaim: React.FC = () => {
             )}
 
             {cptCodesEnabled && getValidLineItems().length > 0 && (
-              <div className="rounded-xl bg-gray-50 border border-gray-200 p-4">
+              <div className="rounded-xl bg-gray-50 border border-gray-200 p-4" data-testid="line-items-summary-card">
                 <h3 className="text-sm font-semibold text-gray-700 mb-2">
                   Procedure Lines ({getValidLineItems().length})
                 </h3>
                 <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
+                  <table className="w-full text-sm" data-testid="line-items-table">
                     <thead>
                       <tr className="text-xs text-gray-500 border-b border-gray-200">
                         <th className="text-left py-1 pr-2">#</th>
@@ -952,11 +952,11 @@ const NewClaim: React.FC = () => {
             )}
 
             {files.length > 0 && (
-              <div className="rounded-xl bg-gray-50 border border-gray-200 p-4">
+              <div className="rounded-xl bg-gray-50 border border-gray-200 p-4" data-testid="documents-summary-card">
                 <h3 className="text-sm font-semibold text-gray-700 mb-2">
                   Documents ({files.length})
                 </h3>
-                <ul className="space-y-1">
+                <ul className="space-y-1" data-testid="documents-list">
                   {files.map((f, i) => (
                     <li key={i} className="text-sm text-gray-600 flex items-center gap-2">
                       <CheckCircle className="h-3 w-3 text-green-500" />

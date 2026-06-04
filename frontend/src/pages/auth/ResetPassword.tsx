@@ -41,13 +41,13 @@ const ResetPassword: React.FC = () => {
   if (!token) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="card p-8 text-center max-w-md">
+        <div className="card p-8 text-center max-w-md" data-testid="invalid-reset-link-error">
           <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-3" />
           <h2 className="text-lg font-semibold text-gray-900 mb-2">Invalid Reset Link</h2>
           <p className="text-sm text-gray-600 mb-4">
             This password reset link is invalid or has expired.
           </p>
-          <Link to="/forgot-password" className="btn-primary inline-flex">
+          <Link to="/forgot-password" className="btn-primary inline-flex" data-testid="request-new-link-btn">
             Request a new link
           </Link>
         </div>
@@ -83,7 +83,7 @@ const ResetPassword: React.FC = () => {
 
         <div className="card p-6">
           {success ? (
-            <div className="text-center py-4">
+            <div className="text-center py-4" data-testid="password-reset-success">
               <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-3" />
               <h2 className="text-lg font-semibold text-gray-900 mb-2">Password Updated!</h2>
               <p className="text-sm text-gray-600">Redirecting you to sign in...</p>
@@ -107,6 +107,7 @@ const ResetPassword: React.FC = () => {
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                     onClick={() => setShowPassword(!showPassword)}
                     tabIndex={-1}
+                    data-testid="toggle-reset-password-visibility"
                   >
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
