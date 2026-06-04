@@ -404,11 +404,11 @@ const NewClaim: React.FC = () => {
       </div>
 
       {/* Step Indicator */}
-      <div className="card p-4">
+      <div className="card p-4" data-testid="step-indicator">
         <div className="flex items-center justify-between">
           {steps.map((step, index) => (
             <React.Fragment key={step}>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2" data-testid={`step-${index + 1}`}>
                 <div
                   className={`h-8 w-8 rounded-full flex items-center justify-center text-sm font-semibold transition-colors ${
                     currentStepIndex > index
@@ -538,7 +538,7 @@ const NewClaim: React.FC = () => {
                 {providers.length > 0 && watchProviderName && watchProviderName.length > 0 && (
                   <ul className="absolute z-10 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg max-h-48 overflow-y-auto">
                     {providers.map((p) => (
-                      <li key={p.id}>
+                      <li key={p.id} data-testid={`provider-option-${p.id}`}>
                         <button
                           type="button"
                           className="w-full text-left px-3 py-2 hover:bg-blue-50 transition-colors"
@@ -547,6 +547,7 @@ const NewClaim: React.FC = () => {
                             setSelectedProvider(p)
                             setProviders([])
                           }}
+                          data-testid={`select-provider-${p.id}`}
                         >
                           <p className="text-sm font-medium text-gray-900">{p.name}</p>
                           <p className="text-xs text-gray-500">
@@ -578,7 +579,7 @@ const NewClaim: React.FC = () => {
               />
               {errors.incidentDate && <p className="form-error">{errors.incidentDate.message}</p>}
               {!errors.incidentDate && filingDeadlineWarning && (
-                <p className="mt-1 text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                <p className="mt-1 text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2" data-testid="filing-deadline-warning">
                   {filingDeadlineWarning}
                 </p>
               )}
@@ -671,6 +672,8 @@ const NewClaim: React.FC = () => {
                           type="button"
                           onClick={() => removeLineItem(idx)}
                           className="text-gray-400 hover:text-red-500 transition-colors"
+                          data-testid={`remove-line-item-${idx}`}
+                          aria-label={`remove-line-item-${idx}`}
                         >
                           <XIcon className="h-3.5 w-3.5" />
                         </button>
@@ -758,7 +761,7 @@ const NewClaim: React.FC = () => {
 
             {/* Eligibility preview */}
             {eligibility && (
-              <div className="rounded-xl bg-green-50 border border-green-200 p-4">
+              <div className="rounded-xl bg-green-50 border border-green-200 p-4" data-testid="eligibility-preview">
                 <h3 className="text-sm font-semibold text-green-800 mb-2">Estimated Eligibility</h3>
                 <div className="space-y-1 text-sm">
                   <div className="flex justify-between">
@@ -787,7 +790,7 @@ const NewClaim: React.FC = () => {
             )}
 
             <div className="flex justify-between pt-2">
-              <button type="button" onClick={goBack} className="btn-secondary">
+              <button type="button" onClick={goBack} className="btn-secondary" data-testid="back-btn">
                 <ChevronLeft className="h-4 w-4" /> Back
               </button>
               <div className="flex gap-3">
@@ -833,7 +836,7 @@ const NewClaim: React.FC = () => {
             label="Upload supporting documents"
           />
           <div className="flex justify-between mt-6">
-            <button type="button" onClick={goBack} className="btn-secondary">
+            <button type="button" onClick={goBack} className="btn-secondary" data-testid="back-btn">
               <ChevronLeft className="h-4 w-4" /> Back
             </button>
             <div className="flex gap-3">
@@ -862,7 +865,7 @@ const NewClaim: React.FC = () => {
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Review & Submit</h2>
 
           <div className="space-y-4">
-            <div className="rounded-xl bg-gray-50 border border-gray-200 p-4">
+            <div className="rounded-xl bg-gray-50 border border-gray-200 p-4" data-testid="claim-summary-card">
               <h3 className="text-sm font-semibold text-gray-700 mb-3">Claim Summary</h3>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
@@ -898,17 +901,17 @@ const NewClaim: React.FC = () => {
               </div>
             </div>
 
-            <div className="rounded-xl bg-gray-50 border border-gray-200 p-4">
+            <div className="rounded-xl bg-gray-50 border border-gray-200 p-4" data-testid="description-summary-card">
               <h3 className="text-sm font-semibold text-gray-700 mb-2">Description</h3>
-              <p className="text-sm text-gray-700">{getValues('description')}</p>
+              <p className="text-sm text-gray-700" data-testid="description-value">{getValues('description')}</p>
             </div>
 
             {diagnosisCodesEnabled && getValidDiagnosisCodes().length > 0 && (
-              <div className="rounded-xl bg-gray-50 border border-gray-200 p-4">
+              <div className="rounded-xl bg-gray-50 border border-gray-200 p-4" data-testid="diagnosis-codes-summary-card">
                 <h3 className="text-sm font-semibold text-gray-700 mb-2">
                   Diagnosis Codes ({getValidDiagnosisCodes().length})
                 </h3>
-                <div className="space-y-1">
+                <div className="space-y-1" data-testid="diagnosis-codes-list">
                   {getValidDiagnosisCodes().map((code, i) => (
                     <div key={i} className="flex items-center gap-2 text-sm">
                       <span className="text-xs text-gray-400 w-20 shrink-0">{i === 0 ? 'Primary' : `Secondary ${i}`}</span>
@@ -920,12 +923,12 @@ const NewClaim: React.FC = () => {
             )}
 
             {cptCodesEnabled && getValidLineItems().length > 0 && (
-              <div className="rounded-xl bg-gray-50 border border-gray-200 p-4">
+              <div className="rounded-xl bg-gray-50 border border-gray-200 p-4" data-testid="line-items-summary-card">
                 <h3 className="text-sm font-semibold text-gray-700 mb-2">
                   Procedure Lines ({getValidLineItems().length})
                 </h3>
                 <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
+                  <table className="w-full text-sm" data-testid="line-items-table">
                     <thead>
                       <tr className="text-xs text-gray-500 border-b border-gray-200">
                         <th className="text-left py-1 pr-2">#</th>
@@ -952,11 +955,11 @@ const NewClaim: React.FC = () => {
             )}
 
             {files.length > 0 && (
-              <div className="rounded-xl bg-gray-50 border border-gray-200 p-4">
+              <div className="rounded-xl bg-gray-50 border border-gray-200 p-4" data-testid="documents-summary-card">
                 <h3 className="text-sm font-semibold text-gray-700 mb-2">
                   Documents ({files.length})
                 </h3>
-                <ul className="space-y-1">
+                <ul className="space-y-1" data-testid="documents-list">
                   {files.map((f, i) => (
                     <li key={i} className="text-sm text-gray-600 flex items-center gap-2">
                       <CheckCircle className="h-3 w-3 text-green-500" />
@@ -969,7 +972,7 @@ const NewClaim: React.FC = () => {
           </div>
 
           <div className="flex flex-wrap justify-between gap-3 mt-6 pt-4 border-t border-gray-200">
-            <button type="button" onClick={goBack} className="btn-secondary">
+            <button type="button" onClick={goBack} className="btn-secondary" data-testid="back-btn">
               <ChevronLeft className="h-4 w-4" /> Back
             </button>
             <div className="flex gap-3">
