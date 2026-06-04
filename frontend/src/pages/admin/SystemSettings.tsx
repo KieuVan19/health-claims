@@ -45,24 +45,28 @@ interface SectionProps {
   savedMsg?: string
 }
 
-const Section: React.FC<SectionProps> = ({ icon, title, children, savedMsg }) => (
-  <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-    <div className="flex items-center gap-3 mb-6">
-      {icon && <div className="p-2 bg-blue-50 rounded-lg">{icon}</div>}
-      <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
+const Section: React.FC<SectionProps> = ({ icon, title, children, savedMsg }) => {
+  const testIdPrefix = title.toLowerCase().replace(/\s+/g, '-')
+  return (
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+      <div className="flex items-center gap-3 mb-6">
+        {icon && <div className="p-2 bg-blue-50 rounded-lg">{icon}</div>}
+        <h2 className="text-lg font-semibold text-gray-900" data-testid={`section-title-${testIdPrefix}`}>{title}</h2>
+      </div>
+      <div className="space-y-6">{children}</div>
+      {savedMsg && (
+        <p
+          className={`mt-3 text-xs font-medium ${
+            savedMsg === 'Saved' ? 'text-green-600' : 'text-red-600'
+          }`}
+          data-testid={`section-saved-message-${testIdPrefix}`}
+        >
+          {savedMsg}
+        </p>
+      )}
     </div>
-    <div className="space-y-6">{children}</div>
-    {savedMsg && (
-      <p
-        className={`mt-3 text-xs font-medium ${
-          savedMsg === 'Saved' ? 'text-green-600' : 'text-red-600'
-        }`}
-      >
-        {savedMsg}
-      </p>
-    )}
-  </div>
-)
+  )
+}
 
 const SystemSettings: React.FC = () => {
   const [autoAssign, setAutoAssign] = useState(true)

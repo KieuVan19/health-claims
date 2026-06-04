@@ -34,6 +34,7 @@ const Pagination: React.FC<PaginationProps> = ({ page, totalPages, onPageChange,
         disabled={page === 1}
         className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
         aria-label="Previous page"
+        data-testid="pagination-prev-btn"
       >
         <ChevronLeft className="h-4 w-4" />
       </button>
@@ -64,6 +65,7 @@ const Pagination: React.FC<PaginationProps> = ({ page, totalPages, onPageChange,
         disabled={page === totalPages}
         className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
         aria-label="Next page"
+        data-testid="pagination-next-btn"
       >
         <ChevronRight className="h-4 w-4" />
       </button>

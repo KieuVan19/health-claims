@@ -45,26 +45,26 @@ const AdjusterWorkload: React.FC = () => {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="card p-4 text-center">
           <Users className="h-6 w-6 text-blue-600 mx-auto mb-1" />
-          <p className="text-2xl font-bold text-gray-900">{data.length}</p>
+          <p className="text-2xl font-bold text-gray-900" data-testid="adjuster-count-value">{data.length}</p>
           <p className="text-xs text-gray-500">Adjusters</p>
         </div>
         <div className="card p-4 text-center">
           <Clock className="h-6 w-6 text-amber-600 mx-auto mb-1" />
-          <p className="text-2xl font-bold text-gray-900">
+          <p className="text-2xl font-bold text-gray-900" data-testid="open-claims-total-value">
             {data.reduce((s, d) => s + d.openClaims, 0)}
           </p>
           <p className="text-xs text-gray-500">Open Claims</p>
         </div>
         <div className="card p-4 text-center">
           <CheckCircle className="h-6 w-6 text-green-600 mx-auto mb-1" />
-          <p className="text-2xl font-bold text-gray-900">
+          <p className="text-2xl font-bold text-gray-900" data-testid="closed-30d-total-value">
             {data.reduce((s, d) => s + d.closedLast30Days, 0)}
           </p>
           <p className="text-xs text-gray-500">Closed (30d)</p>
         </div>
         <div className="card p-4 text-center">
           <TrendingUp className="h-6 w-6 text-purple-600 mx-auto mb-1" />
-          <p className="text-2xl font-bold text-gray-900">
+          <p className="text-2xl font-bold text-gray-900" data-testid="avg-approval-rate-value">
             {data.length > 0
               ? Math.round(data.reduce((s, d) => s + d.approvalRate, 0) / data.length)
               : 0}%
@@ -96,15 +96,15 @@ const AdjusterWorkload: React.FC = () => {
                   <tr
                     key={row.adjuster.id}
                     className="hover:bg-gray-50 transition-colors"
-                    data-testid="workload-row"
+                    data-testid={`workload-row-${row.adjuster.id}`}
                   >
                     <td className="table-cell">
-                      <p className="font-medium text-gray-900">
+                      <p className="font-medium text-gray-900" data-testid={`adjuster-name-${row.adjuster.id}`}>
                         {row.adjuster.firstName} {row.adjuster.lastName}
                       </p>
                       <p className="text-xs text-gray-500">{row.adjuster.email}</p>
                     </td>
-                    <td className="table-cell text-gray-700 text-sm">
+                    <td className="table-cell text-gray-700 text-sm" data-testid={`adjuster-specialty-${row.adjuster.id}`}>
                       {row.adjuster.specialty ?? <span className="text-gray-400">General</span>}
                     </td>
                     <td className="table-cell">
@@ -116,11 +116,12 @@ const AdjusterWorkload: React.FC = () => {
                             ? 'text-amber-600'
                             : 'text-gray-900'
                         }`}
+                        data-testid={`open-claims-count-${row.adjuster.id}`}
                       >
                         {row.openClaims}
                       </span>
                     </td>
-                    <td className="table-cell text-gray-700">{row.closedLast30Days}</td>
+                    <td className="table-cell text-gray-700" data-testid={`closed-claims-count-${row.adjuster.id}`}>{row.closedLast30Days}</td>
                     <td className="table-cell">
                       <span
                         className={`font-medium ${
@@ -130,11 +131,12 @@ const AdjusterWorkload: React.FC = () => {
                             ? 'text-amber-600'
                             : 'text-red-600'
                         }`}
+                        data-testid={`approval-rate-${row.adjuster.id}`}
                       >
                         {Math.round(row.approvalRate)}%
                       </span>
                     </td>
-                    <td className="table-cell text-gray-700">
+                    <td className="table-cell text-gray-700" data-testid={`processing-hours-${row.adjuster.id}`}>
                       {row.avgProcessingHours != null ? `${row.avgProcessingHours}h` : '—'}
                     </td>
                   </tr>
