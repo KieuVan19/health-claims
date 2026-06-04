@@ -193,6 +193,7 @@ const PayoutDetail: React.FC = () => {
       <button
         onClick={() => navigate('/finance/payouts')}
         className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 transition-colors"
+        data-testid="back-to-payouts-link"
       >
         <ArrowLeft className="h-4 w-4" />
         Back to Payouts
@@ -202,7 +203,7 @@ const PayoutDetail: React.FC = () => {
       <div className="flex items-center gap-3 flex-wrap">
         <h1 className="text-2xl font-bold text-gray-900">Payment Detail</h1>
         <span className="text-gray-400">·</span>
-        <span className="text-base font-medium text-gray-600">{claim.claimNumber}</span>
+        <span className="text-base font-medium text-gray-600" data-testid="payout-claim-number">{claim.claimNumber}</span>
         <StatusBadge status={claim.status} />
         <div className="ml-auto flex items-center gap-2">
           <Link
@@ -267,7 +268,7 @@ const PayoutDetail: React.FC = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* Left — payment details */}
-        <div className="card p-5">
+        <div className="card p-5" data-testid="payment-details-card">
           <h2 className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-4">
             <CreditCard className="h-4 w-4 text-gray-400" />
             Payment Details
@@ -275,7 +276,7 @@ const PayoutDetail: React.FC = () => {
 
           <div className="flex justify-between items-center pb-4 mb-2 border-b border-gray-200">
             <span className="text-sm text-gray-500">Amount Paid</span>
-            <span className={`text-2xl font-bold ${claim.payout ? 'text-green-600' : 'text-gray-400'}`}>
+            <span className={`text-2xl font-bold ${claim.payout ? 'text-green-600' : 'text-gray-400'}`} data-testid="amount-paid-value">
               {formatCurrency(claim.payout?.amount ?? claim.adjustedAmount ?? claim.reimbursable ?? 0)}
             </span>
           </div>
@@ -305,32 +306,32 @@ const PayoutDetail: React.FC = () => {
 
           <div className="mt-3">
             <p className="text-sm text-gray-500 mb-1">Notes</p>
-            <p className="text-sm text-gray-500">{claim.payout?.notes ?? '-'}</p>
+            <p className="text-sm text-gray-500" data-testid="payout-notes-value">{claim.payout?.notes ?? '-'}</p>
           </div>
         </div>
 
         {/* Right — patient + adjuster */}
         <div className="space-y-5">
-          <div className="card p-5">
+          <div className="card p-5" data-testid="patient-card">
             <h2 className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-3">
               <User className="h-4 w-4 text-gray-400" />
               Patient
             </h2>
-            <p className="font-medium text-gray-900">
+            <p className="font-medium text-gray-900" data-testid="patient-name-value">
               {claim.patient ? `${claim.patient.firstName} ${claim.patient.lastName}` : '-'}
             </p>
-            <p className="text-sm text-gray-500 mt-0.5">{claim.patient?.email ?? '-'}</p>
+            <p className="text-sm text-gray-500 mt-0.5" data-testid="patient-email-value">{claim.patient?.email ?? '-'}</p>
           </div>
 
-          <div className="card p-5">
+          <div className="card p-5" data-testid="adjuster-card">
             <h2 className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-3">
               <Stethoscope className="h-4 w-4 text-gray-400" />
               Adjuster
             </h2>
-            <p className="font-medium text-gray-900">
+            <p className="font-medium text-gray-900" data-testid="adjuster-name-value">
               {claim.adjuster ? `${claim.adjuster.firstName} ${claim.adjuster.lastName}` : '-'}
             </p>
-            <p className="text-sm text-gray-500 mt-0.5">{claim.adjuster?.email ?? '-'}</p>
+            <p className="text-sm text-gray-500 mt-0.5" data-testid="adjuster-email-value">{claim.adjuster?.email ?? '-'}</p>
           </div>
         </div>
       </div>
