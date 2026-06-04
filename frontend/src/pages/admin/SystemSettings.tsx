@@ -20,6 +20,7 @@ const ToggleRow: React.FC<ToggleRowProps> = ({ label, description, checked, disa
     <button
       role="switch"
       aria-checked={checked}
+      aria-label={label}
       disabled={disabled}
       onClick={() => onChange(!checked)}
       className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-60 ${

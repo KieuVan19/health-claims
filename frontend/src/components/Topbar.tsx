@@ -45,6 +45,7 @@ const Topbar: React.FC<TopbarProps> = ({ title }) => {
             onClick={() => setDropdownOpen((p) => !p)}
             className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors"
             data-testid="user-menu-btn"
+            aria-label="open-user-menu"
           >
             <div className="h-8 w-8 rounded-full bg-blue-600 flex items-center justify-center flex-shrink-0">
               <span className="text-xs font-semibold text-white">
