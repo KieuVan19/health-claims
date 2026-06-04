@@ -154,6 +154,7 @@ const AdminDashboard: React.FC = () => {
               onChange={(e) => setInputStart(e.target.value)}
               max={inputEnd || undefined}
               className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              data-testid="date-from-input"
             />
           </div>
           <div className="flex items-center gap-1.5">
@@ -164,12 +165,14 @@ const AdminDashboard: React.FC = () => {
               onChange={(e) => setInputEnd(e.target.value)}
               min={inputStart || undefined}
               className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              data-testid="date-to-input"
             />
           </div>
           <button
             onClick={applyFilter}
             title="Apply filter"
             className="flex items-center justify-center w-8 h-8 rounded-lg border border-blue-300 bg-blue-50 text-blue-500 hover:bg-blue-100 hover:text-blue-700 hover:border-blue-400 transition-colors"
+            data-testid="apply-filter-btn"
           >
             <Search className="h-4 w-4" />
           </button>
@@ -177,6 +180,7 @@ const AdminDashboard: React.FC = () => {
             onClick={clearFilter}
             title="Clear filter"
             className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border border-red-200 bg-red-50 text-red-500 hover:bg-red-100 hover:text-red-700 hover:border-red-300 transition-colors"
+            data-testid="clear-filter-btn"
           >
             <X className="h-3.5 w-3.5" />
             Clear
@@ -228,7 +232,7 @@ const AdminDashboard: React.FC = () => {
       </div>
 
       {/* Performance Over Time */}
-      <div className="card p-5">
+      <div className="card p-5" data-testid="performance-chart">
         <div className="flex items-start justify-between mb-1">
           <h2 className="text-base font-semibold text-gray-900">Performance Over Time</h2>
           <div className="flex rounded-lg border border-gray-200 overflow-hidden text-xs">
@@ -241,6 +245,7 @@ const AdminDashboard: React.FC = () => {
                     ? 'bg-blue-500 text-white'
                     : 'bg-white text-gray-500 hover:bg-gray-50'
                 }`}
+                data-testid={`duration-${d}-btn`}
               >
                 {d.charAt(0).toUpperCase() + d.slice(1)}
               </button>
@@ -281,7 +286,7 @@ const AdminDashboard: React.FC = () => {
       {/* Charts row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Claims by type */}
-        <div className="card p-5">
+        <div className="card p-5" data-testid="claims-by-type-chart">
           <h2 className="text-base font-semibold text-gray-900">Claims by Type</h2>
           <p className="text-xs text-gray-400 mb-4">Submissions by claim category</p>
           {byTypeData.length === 0 ? (
@@ -302,7 +307,7 @@ const AdminDashboard: React.FC = () => {
         </div>
 
         {/* Claims by status */}
-        <div className="card p-5">
+        <div className="card p-5" data-testid="claims-by-status-chart">
           <h2 className="text-base font-semibold text-gray-900">Claims by Status</h2>
           <p className="text-xs text-gray-400 mb-4">Current claim lifecycle distribution</p>
           {byStatusData.length === 0 ? (

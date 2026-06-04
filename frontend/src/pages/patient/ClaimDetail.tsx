@@ -199,13 +199,13 @@ const ClaimDetail: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <Link to="/patient/claims" className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700">
+      <Link to="/patient/claims" className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700" data-testid="back-to-claims-link">
         <ArrowLeft className="h-4 w-4" /> Back to Claims
       </Link>
 
       {/* Fraud alert (shown to patient as a notice, not a blocking error) */}
       {isFraudRisk && (
-        <div className="flex items-start gap-3 p-3 rounded-lg bg-amber-50 border border-amber-200">
+        <div className="flex items-start gap-3 p-3 rounded-lg bg-amber-50 border border-amber-200" data-testid="fraud-risk-alert">
           <AlertTriangle className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" />
           <div>
             <p className="text-sm font-medium text-amber-800">Claim under enhanced review</p>
@@ -217,18 +217,18 @@ const ClaimDetail: React.FC = () => {
       )}
 
       {/* Header */}
-      <div className="card p-5">
+      <div className="card p-5" data-testid="claim-header-card">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <div className="flex items-center gap-3 flex-wrap">
-              <h1 className="text-xl font-bold text-gray-900">{claim.claimNumber}</h1>
+              <h1 className="text-xl font-bold text-gray-900" data-testid="claim-number-display">{claim.claimNumber}</h1>
               <StatusBadge status={claim.status} patientView />
               {claim.daysOpen !== undefined && !['PAID', 'REJECTED', 'WITHDRAWN'].includes(claim.status) && (
                 <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                   claim.daysOpen >= 10 ? 'bg-red-100 text-red-700' :
                   claim.daysOpen >= 5 ? 'bg-amber-100 text-amber-700' :
                   'bg-gray-100 text-gray-600'
-                }`}>
+                }`} data-testid="days-open-badge">
                   {claim.daysOpen}d open
                 </span>
               )}
@@ -315,85 +315,85 @@ const ClaimDetail: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
           {/* Claim Info */}
-          <div className="card p-5">
+          <div className="card p-5" data-testid="claim-info-card">
             <h2 className="text-base font-semibold text-gray-900 mb-4 flex items-center gap-2">
               <FileText className="h-4 w-4 text-blue-600" />
               Claim Information
             </h2>
             <div className="grid grid-cols-2 gap-4">
-              <div>
+              <div data-testid="incident-date-field">
                 <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Incident Date</label>
-                <div className="mt-1 flex items-center gap-1 text-sm text-gray-900">
+                <div className="mt-1 flex items-center gap-1 text-sm text-gray-900" data-testid="incident-date-value">
                   <Calendar className="h-3.5 w-3.5 text-gray-400" />
                   {format(new Date(claim.incidentDate), 'MMM d, yyyy')}
                 </div>
               </div>
-              <div>
+              <div data-testid="claim-type-field">
                 <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Type</label>
-                <p className="mt-1 text-sm text-gray-900">{CLAIM_TYPE_LABELS[claim.type]}</p>
+                <p className="mt-1 text-sm text-gray-900" data-testid="claim-type-value">{CLAIM_TYPE_LABELS[claim.type]}</p>
               </div>
-              <div>
+              <div data-testid="total-amount-field">
                 <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Total Amount</label>
-                <p className="mt-1 text-sm font-semibold text-gray-900">{formatCurrency(claim.totalAmount)}</p>
+                <p className="mt-1 text-sm font-semibold text-gray-900" data-testid="total-amount-value">{formatCurrency(claim.totalAmount)}</p>
               </div>
               {claim.eligibleAmount !== undefined && (
-                <div>
+                <div data-testid="eligible-amount-field">
                   <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Eligible Amount</label>
-                  <p className="mt-1 text-sm font-semibold text-gray-900">{formatCurrency(claim.eligibleAmount)}</p>
+                  <p className="mt-1 text-sm font-semibold text-gray-900" data-testid="eligible-amount-value">{formatCurrency(claim.eligibleAmount)}</p>
                 </div>
               )}
               {claim.deductible !== undefined && (
-                <div>
+                <div data-testid="deductible-field">
                   <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Deductible</label>
-                  <p className="mt-1 text-sm font-semibold text-gray-900">{formatCurrency(claim.deductible)}</p>
+                  <p className="mt-1 text-sm font-semibold text-gray-900" data-testid="deductible-value">{formatCurrency(claim.deductible)}</p>
                 </div>
               )}
               {claim.eligibleAmount !== undefined && claim.deductible !== undefined && claim.policy?.copayPercentage !== undefined && (
-                <div>
+                <div data-testid="copay-amount-field">
                   <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Copay Amount</label>
-                  <p className="mt-1 text-sm font-semibold text-gray-900">
+                  <p className="mt-1 text-sm font-semibold text-gray-900" data-testid="copay-amount-value">
                     {formatCurrency(Math.max(0, claim.eligibleAmount - claim.deductible) * (claim.policy.copayPercentage / 100))}
                   </p>
                 </div>
               )}
               {claim.reimbursable !== undefined && (
-                <div>
+                <div data-testid="reimbursable-field">
                   <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">
                     {claim.adjustedAmount != null ? 'Calculated Reimbursable' : 'Reimbursable'}
                   </label>
-                  <p className={`mt-1 text-sm font-bold ${claim.adjustedAmount != null ? 'text-gray-400 line-through' : 'text-green-600'}`}>
+                  <p className={`mt-1 text-sm font-bold ${claim.adjustedAmount != null ? 'text-gray-400 line-through' : 'text-green-600'}`} data-testid="reimbursable-value">
                     {formatCurrency(claim.reimbursable)}
                   </p>
                 </div>
               )}
               {claim.adjustedAmount != null && (
-                <div>
+                <div data-testid="adjusted-amount-field">
                   <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Approved Amount (Adjusted)</label>
-                  <p className="mt-1 text-sm font-bold text-green-600">{formatCurrency(claim.adjustedAmount)}</p>
+                  <p className="mt-1 text-sm font-bold text-green-600" data-testid="adjusted-amount-value">{formatCurrency(claim.adjustedAmount)}</p>
                 </div>
               )}
             </div>
-            <div className="mt-4 pt-4 border-t border-gray-100">
+            <div className="mt-4 pt-4 border-t border-gray-100" data-testid="description-field">
               <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Description</label>
-              <p className="mt-1 text-sm text-gray-700">{claim.description}</p>
+              <p className="mt-1 text-sm text-gray-700" data-testid="description-value">{claim.description}</p>
             </div>
             {claim.adjusterNotes && (
-              <div className="mt-4 pt-4 border-t border-gray-100">
+              <div className="mt-4 pt-4 border-t border-gray-100" data-testid="adjuster-notes-field">
                 <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Adjuster Notes</label>
-                <p className="mt-1 text-sm text-gray-700">{claim.adjusterNotes}</p>
+                <p className="mt-1 text-sm text-gray-700" data-testid="adjuster-notes-value">{claim.adjusterNotes}</p>
               </div>
             )}
           </div>
 
           {/* Line Items */}
           {claim.lines && claim.lines.length > 0 && (
-            <div className="card p-5">
+            <div className="card p-5" data-testid="line-items-card">
               <h2 className="text-base font-semibold text-gray-900 mb-4 flex items-center gap-2">
                 <FileText className="h-4 w-4 text-blue-600" />
                 Procedure Line Items
               </h2>
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="w-full text-sm" data-testid="line-items-table">
                   <thead>
                     <tr className="text-xs text-gray-500 border-b border-gray-100">
                       <th className="text-left py-2 pr-3">#</th>
@@ -421,7 +421,7 @@ const ClaimDetail: React.FC = () => {
                         DENIED: 'text-red-600 font-medium',
                       }
                       return (
-                        <tr key={line.id} className="border-b border-gray-50 last:border-0">
+                        <tr key={line.id} className="border-b border-gray-50 last:border-0" data-testid={`line-item-${line.id}`}>
                           <td className="py-2 pr-3 text-gray-400">{line.lineNumber}</td>
                           <td className="py-2 pr-3 font-mono font-medium text-gray-900">{line.cptCode}</td>
                           <td className="py-2 pr-3 font-mono text-gray-500">{line.modifier || '—'}</td>

@@ -153,6 +153,7 @@ const Register: React.FC = () => {
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                   onClick={() => setShowPassword(!showPassword)}
                   tabIndex={-1}
+                  data-testid="toggle-register-password-visibility"
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
@@ -187,7 +188,7 @@ const Register: React.FC = () => {
 
           <p className="mt-4 text-center text-sm text-gray-600">
             Already have an account?{' '}
-            <Link to="/login" className="text-blue-600 hover:text-blue-700 font-medium">
+            <Link to="/login" className="text-blue-600 hover:text-blue-700 font-medium" data-testid="sign-in-link">
               Sign in
             </Link>
           </p>

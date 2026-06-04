@@ -295,6 +295,7 @@ const PolicyManagement: React.FC = () => {
               placeholder="Search policies..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              data-testid="policies-search-input"
             />
           </div>
           <input
@@ -303,6 +304,7 @@ const PolicyManagement: React.FC = () => {
             value={effectiveDateFilter}
             onChange={(e) => setEffectiveDateFilter(e.target.value)}
             title="Effective date from"
+            data-testid="policy-effective-date-from"
           />
           <span className="text-gray-400 text-sm">–</span>
           <input
@@ -311,11 +313,13 @@ const PolicyManagement: React.FC = () => {
             value={expiryDateFilter}
             onChange={(e) => setExpiryDateFilter(e.target.value)}
             title="Expiry date up to"
+            data-testid="policy-expiry-date-to"
           />
           <select
             className="form-input w-36 text-sm"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
+            data-testid="policy-status-filter"
           >
             <option value="">All Statuses</option>
             <option value="active">Active</option>
@@ -326,6 +330,7 @@ const PolicyManagement: React.FC = () => {
             className="form-input w-36 text-sm"
             value={typeFilter}
             onChange={(e) => setTypeFilter(e.target.value)}
+            data-testid="policy-type-filter"
           >
             <option value="">All Types</option>
             <option value="BASIC">Basic</option>
@@ -336,6 +341,7 @@ const PolicyManagement: React.FC = () => {
             onClick={() => { setSearchQuery(''); setStatusFilter(''); setTypeFilter(''); setEffectiveDateFilter(''); setExpiryDateFilter('') }}
             title="Clear filters"
             className="flex items-center justify-center w-8 h-8 rounded-lg border border-red-200 bg-red-50 text-red-500 hover:bg-red-100 hover:text-red-700 hover:border-red-300 transition-colors flex-shrink-0"
+            data-testid="clear-policy-filters-btn"
           >
             <X className="h-3.5 w-3.5" />
           </button>
@@ -374,30 +380,30 @@ const PolicyManagement: React.FC = () => {
                     <tr key={policy.id} className="hover:bg-gray-50 transition-colors" data-testid="policy-row">
                       <td className="table-cell">
                         <div>
-                          <p className="font-medium text-gray-900">{policy.name}</p>
+                          <p className="font-medium text-gray-900" data-testid={`policy-name-${policy.id}`}>{policy.name}</p>
                           {policy.description && (
-                            <p className="text-xs text-gray-500 truncate max-w-48">{policy.description}</p>
+                            <p className="text-xs text-gray-500 truncate max-w-48" data-testid={`policy-desc-${policy.id}`}>{policy.description}</p>
                           )}
                         </div>
                       </td>
                       <td className="table-cell">
-                        <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${policyTypeColors[policy.type]}`}>
+                        <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${policyTypeColors[policy.type]}`} data-testid={`policy-type-${policy.id}`}>
                           {policy.type}
                         </span>
                       </td>
-                      <td className="table-cell font-medium">{formatCurrency(policy.coverageAmount ?? policy.coverageLimit ?? 0)}</td>
-                      <td className="table-cell">{formatCurrency(policy.deductible)}</td>
-                      <td className="table-cell">{policy.copayPercentage ?? 0}%</td>
-                      {outOfNetworkEnabled && <td className="table-cell">{policy.oonCopayPercent ?? 0}%</td>}
-                      <td className="table-cell">{formatCurrency(policy.oopMax ?? 8000)}</td>
-                      <td className="table-cell">{policy.filingDeadlineDays ?? 365} days</td>
-                      <td className="table-cell text-gray-600">
+                      <td className="table-cell font-medium" data-testid={`policy-coverage-${policy.id}`}>{formatCurrency(policy.coverageAmount ?? policy.coverageLimit ?? 0)}</td>
+                      <td className="table-cell" data-testid={`policy-deductible-${policy.id}`}>{formatCurrency(policy.deductible)}</td>
+                      <td className="table-cell" data-testid={`policy-copay-${policy.id}`}>{policy.copayPercentage ?? 0}%</td>
+                      {outOfNetworkEnabled && <td className="table-cell" data-testid={`policy-oon-copay-${policy.id}`}>{policy.oonCopayPercent ?? 0}%</td>}
+                      <td className="table-cell" data-testid={`policy-oop-max-${policy.id}`}>{formatCurrency(policy.oopMax ?? 8000)}</td>
+                      <td className="table-cell" data-testid={`policy-deadline-${policy.id}`}>{policy.filingDeadlineDays ?? 365} days</td>
+                      <td className="table-cell text-gray-600" data-testid={`policy-effective-date-${policy.id}`}>
                         {format(new Date(policy.effectiveDate), 'MMM d, yyyy')}
                       </td>
-                      <td className={`table-cell font-medium ${isExpired ? 'text-red-500' : 'text-gray-600'}`}>
+                      <td className={`table-cell font-medium ${isExpired ? 'text-red-500' : 'text-gray-600'}`} data-testid={`policy-expiry-date-${policy.id}`}>
                         {format(new Date(policy.expiryDate), 'MMM d, yyyy')}
                       </td>
-                      <td className="table-cell">{renderStatus(policy)}</td>
+                      <td className="table-cell" data-testid={`policy-status-${policy.id}`}>{renderStatus(policy)}</td>
                       <td className="table-cell">
                         <div className="flex items-center gap-1">
                           <button

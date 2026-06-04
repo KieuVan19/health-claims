@@ -195,6 +195,7 @@ const ClaimQueue: React.FC = () => {
                 ? 'border-blue-600 text-blue-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700'
             }`}
+            data-testid={`queue-tab-${key}`}
           >
             <Icon className="h-4 w-4" />
             {label}
@@ -267,7 +268,7 @@ const ClaimQueue: React.FC = () => {
           </button>
 
           {(searchInput || search || statusFilter || typeFilter) && (
-            <button type="button" onClick={handleClear} className="btn-secondary px-3 text-sm">
+            <button type="button" onClick={handleClear} className="btn-secondary px-3 text-sm" data-testid="clear-queue-filters-btn">
               Clear filters
             </button>
           )}
@@ -330,6 +331,7 @@ const ClaimQueue: React.FC = () => {
                         <Link
                           to={`/adjuster/claims/${claim.id}`}
                           className="font-medium text-blue-600 hover:text-blue-800 hover:underline"
+                          data-testid={`claim-number-link-${claim.id}`}
                         >
                           {claim.claimNumber}
                         </Link>

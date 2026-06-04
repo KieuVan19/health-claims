@@ -52,14 +52,14 @@ const ForgotPassword: React.FC = () => {
 
         <div className="card p-6">
           {sent ? (
-            <div className="text-center py-4">
+            <div className="text-center py-4" data-testid="reset-email-sent-success">
               <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-3" />
               <h2 className="text-lg font-semibold text-gray-900 mb-2">Check Your Email</h2>
               <p className="text-sm text-gray-600 mb-4">
                 If <strong>{getValues('email')}</strong> is registered, you'll receive a password reset
                 link shortly.
               </p>
-              <Link to="/login" className="btn-primary inline-flex">
+              <Link to="/login" className="btn-primary inline-flex" data-testid="back-to-login-btn">
                 <ArrowLeft className="h-4 w-4" />
                 Back to Sign In
               </Link>
@@ -101,6 +101,7 @@ const ForgotPassword: React.FC = () => {
               <Link
                 to="/login"
                 className="text-sm text-gray-600 hover:text-gray-800 flex items-center justify-center gap-1"
+                data-testid="back-to-login-form-link"
               >
                 <ArrowLeft className="h-3 w-3" />
                 Back to Sign In

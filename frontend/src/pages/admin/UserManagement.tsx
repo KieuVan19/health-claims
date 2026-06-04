@@ -306,27 +306,27 @@ const UserManagement: React.FC = () => {
                               {user.firstName[0]}{user.lastName[0]}
                             </span>
                           </div>
-                          <span className="font-medium">{user.firstName} {user.lastName}</span>
+                          <span className="font-medium" data-testid={`user-name-${user.id}`}>{user.firstName} {user.lastName}</span>
                         </div>
                       </td>
-                      <td className="table-cell text-gray-600">{user.email}</td>
+                      <td className="table-cell text-gray-600" data-testid={`user-email-${user.id}`}>{user.email}</td>
                       <td className="table-cell">
-                        <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${roleBadge[user.role]}`}>
+                        <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${roleBadge[user.role]}`} data-testid={`user-role-${user.id}`}>
                           {roleLabels[user.role]}
                         </span>
                       </td>
                       <td className="table-cell">
                         {user.isActive ? (
-                          <span className="flex items-center gap-1 text-xs text-green-600 font-medium">
+                          <span className="flex items-center gap-1 text-xs text-green-600 font-medium" data-testid={`user-status-${user.id}`}>
                             <CheckCircle className="h-3 w-3" /> Active
                           </span>
                         ) : (
-                          <span className="flex items-center gap-1 text-xs text-gray-400 font-medium">
+                          <span className="flex items-center gap-1 text-xs text-gray-400 font-medium" data-testid={`user-status-${user.id}`}>
                             <XCircle className="h-3 w-3" /> Inactive
                           </span>
                         )}
                       </td>
-                      <td className="table-cell text-gray-600">
+                      <td className="table-cell text-gray-600" data-testid={`user-created-${user.id}`}>
                         {format(new Date(user.createdAt), 'MMM d, yyyy')}
                       </td>
                       <td className="table-cell">

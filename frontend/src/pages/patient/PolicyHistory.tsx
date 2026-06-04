@@ -55,6 +55,7 @@ const PolicyHistory: React.FC = () => {
           type="button"
           onClick={() => navigate('/patient/policies')}
           className="btn-secondary"
+          data-testid="back-to-policies-btn"
         >
           <ChevronLeft className="h-4 w-4" /> Back
         </button>
@@ -79,7 +80,7 @@ const PolicyHistory: React.FC = () => {
           {rows.map(({ year, summaries }) => (
             <div key={year} className="card overflow-hidden">
               <div className="bg-gray-50 border-b border-gray-200 px-5 py-3">
-                <p className="text-base font-bold text-gray-800 tracking-tight">{year} Plan Year</p>
+                <p className="text-base font-bold text-gray-800 tracking-tight" data-testid={`year-header-${year}`}>{year} Plan Year</p>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
@@ -94,21 +95,21 @@ const PolicyHistory: React.FC = () => {
                   </thead>
                   <tbody className="divide-y divide-gray-50">
                     {summaries.map((s) => (
-                      <tr key={s.policy.id} className="hover:bg-gray-50 transition-colors">
+                      <tr key={s.policy.id} className="hover:bg-gray-50 transition-colors" data-testid={`policy-history-row-${s.policy.id}`}>
                         <td className="px-5 py-3">
-                          <p className="font-medium text-gray-900">{s.policy.name}</p>
-                          <p className="text-xs text-gray-400">{s.policy.type}</p>
+                          <p className="font-medium text-gray-900" data-testid={`policy-name-${s.policy.id}`}>{s.policy.name}</p>
+                          <p className="text-xs text-gray-400" data-testid={`policy-type-${s.policy.id}`}>{s.policy.type}</p>
                         </td>
-                        <td className="px-5 py-3 text-gray-700">
+                        <td className="px-5 py-3 text-gray-700" data-testid={`coverage-used-${s.policy.id}`}>
                           {formatCurrency(s.usedAmount)}
                           <span className="text-gray-400"> / {formatCurrency(s.policy.coverageAmount)}</span>
                         </td>
-                        <td className="px-5 py-3 text-gray-700">{formatCurrency(s.reimbursedAmount)}</td>
-                        <td className="px-5 py-3 text-gray-700">
+                        <td className="px-5 py-3 text-gray-700" data-testid={`reimbursed-amount-${s.policy.id}`}>{formatCurrency(s.reimbursedAmount)}</td>
+                        <td className="px-5 py-3 text-gray-700" data-testid={`deductible-paid-${s.policy.id}`}>
                           {formatCurrency(s.deductiblePaid)}
                           <span className="text-gray-400"> / {formatCurrency(s.policy.deductible)}</span>
                         </td>
-                        <td className="px-5 py-3 text-gray-700">
+                        <td className="px-5 py-3 text-gray-700" data-testid={`oop-paid-${s.policy.id}`}>
                           {formatCurrency(s.oopPaid)}
                           <span className="text-gray-400"> / {formatCurrency(s.policy.oopMax ?? 8000)}</span>
                         </td>

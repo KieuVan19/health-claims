@@ -260,6 +260,7 @@ const PayoutList: React.FC = () => {
                 value={pendingPaidFrom}
                 max={pendingPaidTo || undefined}
                 onChange={e => setPendingPaidFrom(e.target.value)}
+                data-testid="paid-from-input"
               />
               <label className="text-sm text-gray-600 whitespace-nowrap" htmlFor="paid-to">To</label>
               <input
@@ -269,6 +270,7 @@ const PayoutList: React.FC = () => {
                 value={pendingPaidTo}
                 min={pendingPaidFrom || undefined}
                 onChange={e => setPendingPaidTo(e.target.value)}
+                data-testid="paid-to-input"
               />
             </>
           )}

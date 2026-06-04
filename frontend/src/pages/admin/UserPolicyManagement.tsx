@@ -195,7 +195,7 @@ const UserPolicyManagement: React.FC = () => {
           <h1 className="text-2xl font-bold text-gray-900">User Policies</h1>
           <p className="text-sm text-gray-500 mt-0.5">Manage policy assignments for patients</p>
         </div>
-        <button onClick={openAssign} className="btn-primary">
+        <button onClick={openAssign} className="btn-primary" data-testid="assign-policy-btn">
           <PlusCircle className="h-4 w-4" />
           Assign Policy
         </button>
@@ -212,6 +212,7 @@ const UserPolicyManagement: React.FC = () => {
               className="form-input pl-9"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
+              data-testid="search-user-policies"
             />
           </div>
           <select
@@ -325,6 +326,7 @@ const UserPolicyManagement: React.FC = () => {
                             onClick={() => openExtend(up)}
                             className="text-gray-400 hover:text-blue-600 p-1 rounded"
                             title="Extend expiry"
+                            data-testid={`extend-policy-btn-${up.id}`}
                           >
                             <Calendar className="h-4 w-4" />
                           </button>
@@ -332,6 +334,7 @@ const UserPolicyManagement: React.FC = () => {
                             onClick={() => setRemoveTarget(up)}
                             className="text-gray-400 hover:text-red-600 p-1 rounded"
                             title="Remove assignment"
+                            data-testid={`remove-policy-btn-${up.id}`}
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>
@@ -348,10 +351,10 @@ const UserPolicyManagement: React.FC = () => {
 
       {/* ── Assign Modal ────────────────────────────────────────────────────────── */}
       {showAssign && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" data-testid="assign-policy-modal">
           <div className="absolute inset-0 bg-black/40" onClick={() => setShowAssign(false)} />
           <div className="relative bg-white rounded-xl shadow-xl max-w-md w-full p-6 max-h-[90vh] flex flex-col">
-            <button className="absolute top-4 right-4 text-gray-400 hover:text-gray-600" onClick={() => setShowAssign(false)}>
+            <button className="absolute top-4 right-4 text-gray-400 hover:text-gray-600" onClick={() => setShowAssign(false)} data-testid="close-modal-btn">
               <X className="h-5 w-5" />
             </button>
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Assign Policy to Patient</h3>
@@ -367,6 +370,7 @@ const UserPolicyManagement: React.FC = () => {
                     className="form-input"
                     value={selectedPolicyId}
                     onChange={(e) => setSelectedPolicyId(e.target.value)}
+                    data-testid="assign-modal-policy-select"
                   >
                     <option value="">Select a policy...</option>
                     {allPolicies.map((p) => (
@@ -387,6 +391,7 @@ const UserPolicyManagement: React.FC = () => {
                     className="form-input pl-9"
                     value={patientSearch}
                     onChange={(e) => setPatientSearch(e.target.value)}
+                    data-testid="patient-search-input"
                   />
                 </div>
                 <div className="flex-1 overflow-y-auto border border-gray-200 rounded-lg divide-y divide-gray-100 max-h-52">
@@ -418,12 +423,13 @@ const UserPolicyManagement: React.FC = () => {
             )}
 
             <div className="flex justify-end gap-3 pt-4 mt-4 border-t border-gray-100">
-              <button type="button" onClick={() => setShowAssign(false)} className="btn-secondary">Cancel</button>
+              <button type="button" onClick={() => setShowAssign(false)} className="btn-secondary" data-testid="cancel-assign-btn">Cancel</button>
               <button
                 type="button"
                 onClick={handleAssign}
                 disabled={!selectedPatientId || !selectedPolicyId || actionLoading}
                 className="btn-primary"
+                data-testid="confirm-assign-btn"
               >
                 {actionLoading ? 'Assigning...' : 'Assign Policy'}
               </button>

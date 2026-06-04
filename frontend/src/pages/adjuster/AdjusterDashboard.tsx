@@ -128,12 +128,13 @@ const AdjusterDashboard: React.FC = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* My assigned claims */}
-        <div className="card">
+        <div className="card" data-testid="my-queue-card">
           <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
             <h2 className="text-base font-semibold text-gray-900">My Queue</h2>
             <Link
               to="/adjuster/claims"
               className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
+              data-testid="view-all-queue-link"
             >
               View all <ChevronRight className="h-4 w-4" />
             </Link>
@@ -174,7 +175,7 @@ const AdjusterDashboard: React.FC = () => {
         </div>
 
         {/* Unassigned claims */}
-        <div className="card">
+        <div className="card" data-testid="unassigned-claims-card">
           <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
             <h2 className="text-base font-semibold text-gray-900">
               Unassigned Claims
