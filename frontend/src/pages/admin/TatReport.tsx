@@ -31,18 +31,19 @@ const SlaBadge: React.FC<{ status: SlaStatus }> = ({ status }) => (
   </span>
 )
 
-const SummaryCard: React.FC<{ label: string; count: number; className?: string; icon: React.ElementType }> = ({
+const SummaryCard: React.FC<{ label: string; count: number; className?: string; icon: React.ElementType; testId?: string }> = ({
   label,
   count,
   className = '',
   icon: Icon,
+  testId,
 }) => (
   <div className={`card p-4 flex items-center gap-3 ${className}`}>
     <div className="flex-shrink-0">
       <Icon className="h-6 w-6" />
     </div>
     <div>
-      <p className="text-2xl font-bold">{count}</p>
+      <p className="text-2xl font-bold" data-testid={testId}>{count}</p>
       <p className="text-sm opacity-80">{label}</p>
     </div>
   </div>
@@ -119,24 +120,28 @@ const TatReport: React.FC = () => {
             count={report.summary.total}
             icon={Clock}
             className="text-gray-700"
+            testId="tat-total-open-value"
           />
           <SummaryCard
             label="On Track"
             count={report.summary.onTrack}
             icon={CheckCircle}
             className="text-green-700 border-green-200 bg-green-50"
+            testId="tat-on-track-value"
           />
           <SummaryCard
             label="At Risk"
             count={report.summary.atRisk}
             icon={AlertTriangle}
             className="text-amber-700 border-amber-200 bg-amber-50"
+            testId="tat-at-risk-value"
           />
           <SummaryCard
             label="Breached"
             count={report.summary.breached}
             icon={AlertTriangle}
             className="text-red-700 border-red-200 bg-red-50"
+            testId="tat-breached-value"
           />
         </div>
       )}
@@ -181,12 +186,12 @@ const TatReport: React.FC = () => {
             />
           </div>
 
-          <button type="submit" className="btn-secondary px-3">
+          <button type="submit" className="btn-secondary px-3" data-testid="tat-apply-btn">
             <Search className="h-4 w-4" />
           </button>
 
           {hasFilters && (
-            <button type="button" onClick={handleClear} className="btn-secondary px-3 text-sm">
+            <button type="button" onClick={handleClear} className="btn-secondary px-3 text-sm" data-testid="tat-clear-btn">
               Clear
             </button>
           )}
@@ -230,9 +235,9 @@ const TatReport: React.FC = () => {
                         item.slaStatus === 'AT_RISK' ? 'bg-amber-50 hover:bg-amber-100' :
                         'hover:bg-gray-50'
                       }`}
-                      data-testid="tat-report-row"
+                      data-testid={`tat-report-row-${item.claimId}`}
                     >
-                      <td className="table-cell font-medium text-blue-600">{item.claimNumber}</td>
+                      <td className="table-cell font-medium text-blue-600" data-testid={`tat-claim-number-${item.claimId}`}>{item.claimNumber}</td>
                       <td className="table-cell">
                         {item.patient.firstName} {item.patient.lastName}
                       </td>
@@ -249,14 +254,15 @@ const TatReport: React.FC = () => {
                           item.slaStatus === 'BREACHED' ? 'text-red-700' :
                           item.slaStatus === 'AT_RISK' ? 'text-amber-700' :
                           'text-gray-800'
-                        }`}>
+                        }`}
+                        data-testid={`tat-age-days-${item.claimId}`}>
                           Day {item.ageDays}
                         </span>
                       </td>
                       <td className="table-cell">
                         <StatusBadge status={item.currentStatus} />
                       </td>
-                      <td className="table-cell">
+                      <td className="table-cell" data-testid={`tat-sla-status-${item.claimId}`}>
                         <SlaBadge status={item.slaStatus} />
                       </td>
                       <td className="table-cell">

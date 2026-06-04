@@ -143,6 +143,7 @@ const AuditLogs: React.FC = () => {
             onClick={() => { setSearchInput(''); setSearch(''); setStartDate(''); setEndDate(''); setResourceFilter(''); setPage(1) }}
             title="Clear filters"
             className="flex items-center justify-center w-8 h-8 rounded-lg border border-red-200 bg-red-50 text-red-500 hover:bg-red-100 hover:text-red-700 hover:border-red-300 transition-colors shrink-0"
+            data-testid="clear-audit-filters-btn"
           >
             <X className="h-3.5 w-3.5" />
           </button>
@@ -175,36 +176,36 @@ const AuditLogs: React.FC = () => {
                       <tr
                         className="hover:bg-gray-50 transition-colors cursor-pointer"
                         onClick={() => setExpandedId(expandedId === log.id ? null : log.id)}
-                        data-testid="audit-log-row"
+                        data-testid={`audit-log-row-${log.id}`}
                       >
-                        <td className="table-cell whitespace-nowrap text-gray-600 text-xs">
+                        <td className="table-cell whitespace-nowrap text-gray-600 text-xs" data-testid={`log-timestamp-${log.id}`}>
                           {format(new Date(log.createdAt), 'MMM d, yyyy HH:mm:ss')}
                         </td>
                         <td className="table-cell">
                           {log.user ? (
                             <div>
-                              <p className="text-sm font-medium text-gray-900">
+                              <p className="text-sm font-medium text-gray-900" data-testid={`log-user-${log.id}`}>
                                 {log.user.firstName} {log.user.lastName}
                               </p>
-                              <p className="text-xs text-gray-500">{log.user.email}</p>
+                              <p className="text-xs text-gray-500" data-testid={`log-email-${log.id}`}>{log.user.email}</p>
                             </div>
                           ) : (
                             <span className="text-gray-400 text-sm">System</span>
                           )}
                         </td>
                         <td className="table-cell">
-                          <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${getActionColor(log.action)}`}>
+                          <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${getActionColor(log.action)}`} data-testid={`log-action-${log.id}`}>
                             {getActionLabel(log.action)}
                           </span>
                         </td>
                         <td className="table-cell">
-                          <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${getResourceColor(log.resource)}`}>
+                          <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${getResourceColor(log.resource)}`} data-testid={`log-resource-${log.id}`}>
                             {log.resource}
                           </span>
                         </td>
                         <td className="table-cell">
                           {log.resourceId ? (
-                            <span className="text-xs font-mono text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded">
+                            <span className="text-xs font-mono text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded" data-testid={`log-resource-id-${log.id}`}>
                               {log.resourceId.slice(0, 8)}...
                             </span>
                           ) : (
@@ -213,7 +214,7 @@ const AuditLogs: React.FC = () => {
                         </td>
                         <td className="table-cell max-w-xs">
                           {log.details ? (
-                            <p className="text-xs text-gray-600 truncate">{log.details}</p>
+                            <p className="text-xs text-gray-600 truncate" data-testid={`log-details-${log.id}`}>{log.details}</p>
                           ) : (
                             <span className="text-gray-400">—</span>
                           )}

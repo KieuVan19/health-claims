@@ -78,6 +78,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
             <li
               key={index}
               className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2 border border-gray-200"
+              data-testid={`file-item-${index}`}
             >
               <div className="flex items-center gap-2 min-w-0">
                 <FileText className="h-4 w-4 text-indigo-500 flex-shrink-0" />

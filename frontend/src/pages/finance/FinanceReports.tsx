@@ -192,28 +192,28 @@ const FinanceReports: React.FC = () => {
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                   {claims.map((claim) => (
-                    <tr key={claim.id} className="hover:bg-gray-50 transition-colors" data-testid="finance-report-row">
-                      <td className="py-3 pr-4 font-mono text-xs text-gray-700 whitespace-nowrap">
+                    <tr key={claim.id} className="hover:bg-gray-50 transition-colors" data-testid={`finance-report-row-${claim.id}`}>
+                      <td className="py-3 pr-4 font-mono text-xs text-gray-700 whitespace-nowrap" data-testid={`report-claim-number-${claim.id}`}>
                         {claim.claimNumber}
                       </td>
-                      <td className="py-3 px-4 text-gray-900 whitespace-nowrap">
+                      <td className="py-3 px-4 text-gray-900 whitespace-nowrap" data-testid={`report-patient-${claim.id}`}>
                         {claim.patient
                           ? `${claim.patient.firstName} ${claim.patient.lastName}`
                           : '—'}
                       </td>
-                      <td className="py-3 px-4 text-gray-600 whitespace-nowrap">
+                      <td className="py-3 px-4 text-gray-600 whitespace-nowrap" data-testid={`report-type-${claim.id}`}>
                         {TYPE_LABELS[claim.type] ?? claim.type}
                       </td>
-                      <td className="py-3 px-4 text-right text-gray-700">
+                      <td className="py-3 px-4 text-right text-gray-700" data-testid={`report-amount-${claim.id}`}>
                         {formatCurrency(claim.totalAmount)}
                       </td>
-                      <td className="py-3 px-4 text-right font-semibold text-gray-900">
+                      <td className="py-3 px-4 text-right font-semibold text-gray-900" data-testid={`report-reimbursable-${claim.id}`}>
                         {claim.reimbursable != null ? formatCurrency(claim.reimbursable) : '—'}
                       </td>
                       <td className="py-3 px-4">
                         <StatusBadge status={claim.status} />
                       </td>
-                      <td className="py-3 pl-4 text-gray-500 whitespace-nowrap">
+                      <td className="py-3 pl-4 text-gray-500 whitespace-nowrap" data-testid={`report-date-${claim.id}`}>
                         {statusFilter === 'PAID'
                           ? formatDate(claim.payout?.paidAt)
                           : formatDate(claim.updatedAt)}

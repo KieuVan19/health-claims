@@ -37,7 +37,7 @@ const Topbar: React.FC<TopbarProps> = ({ title }) => {
       {!title && <div className="flex-1" />}
 
       <div className="flex items-center gap-2">
-{user?.role !== 'ADMIN' && <NotificationBell />}
+        {user?.role !== 'ADMIN' && <div data-testid="notification-bell-container"><NotificationBell /></div>}
 
         {/* User menu */}
         <div className="relative" ref={dropdownRef}>

@@ -186,7 +186,7 @@ const ProviderManagement: React.FC = () => {
         </div>
         <button type="submit" className="btn-secondary">Search</button>
         {search && (
-          <button type="button" className="btn-secondary" onClick={() => { setSearch(''); setPage(1); fetchProviders(1, '') }}>
+          <button type="button" className="btn-secondary" onClick={() => { setSearch(''); setPage(1); fetchProviders(1, '') }} data-testid="clear-provider-search-btn">
             <X className="h-4 w-4" />
           </button>
         )}
@@ -214,11 +214,11 @@ const ProviderManagement: React.FC = () => {
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {data.data.map((p) => (
-                    <tr key={p.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-4 py-3 font-mono text-xs text-gray-700">{p.npi}</td>
-                      <td className="px-4 py-3 font-medium text-gray-900">{p.name}</td>
-                      <td className="px-4 py-3 text-gray-600">{typeLabel[p.providerType]}</td>
-                      <td className="px-4 py-3 text-gray-600">{p.specialty ?? '—'}</td>
+                    <tr key={p.id} className="hover:bg-gray-50 transition-colors" data-testid={`provider-row-${p.id}`}>
+                      <td className="px-4 py-3 font-mono text-xs text-gray-700" data-testid={`provider-npi-${p.id}`}>{p.npi}</td>
+                      <td className="px-4 py-3 font-medium text-gray-900" data-testid={`provider-name-${p.id}`}>{p.name}</td>
+                      <td className="px-4 py-3 text-gray-600" data-testid={`provider-type-${p.id}`}>{typeLabel[p.providerType]}</td>
+                      <td className="px-4 py-3 text-gray-600" data-testid={`provider-specialty-${p.id}`}>{p.specialty ?? '—'}</td>
                       <td className="px-4 py-3">
                         <button
                           onClick={() => handleToggleNetwork(p)}
