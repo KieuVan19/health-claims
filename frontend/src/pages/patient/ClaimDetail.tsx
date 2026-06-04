@@ -532,6 +532,7 @@ const ClaimDetail: React.FC = () => {
                             className="text-blue-600 hover:text-blue-700 p-1 rounded hover:bg-blue-50 transition-colors"
                             title="Open"
                             data-testid="preview-doc-btn"
+                            aria-label="view-document"
                           >
                             <Eye className="h-4 w-4" />
                           </button>
@@ -541,6 +542,7 @@ const ClaimDetail: React.FC = () => {
                           className="text-blue-600 hover:text-blue-700 p-1 rounded hover:bg-blue-50 transition-colors"
                           title="Download"
                           data-testid="download-doc-btn"
+                          aria-label="download-document"
                         >
                           <Download className="h-4 w-4" />
                         </button>

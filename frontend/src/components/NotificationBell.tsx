@@ -118,6 +118,7 @@ const NotificationBell: React.FC = () => {
                           to={n.link}
                           onClick={() => { setOpen(false); handleMarkOne(n.id) }}
                           className="text-blue-500 hover:text-blue-700"
+                          aria-label="view-notification"
                         >
                           <ExternalLink className="h-3 w-3" />
                         </Link>
@@ -127,6 +128,7 @@ const NotificationBell: React.FC = () => {
                           onClick={() => handleMarkOne(n.id)}
                           className="text-gray-400 hover:text-green-500"
                           title="Mark as read"
+                          aria-label="mark-notification-read"
                         >
                           <Check className="h-3 w-3" />
                         </button>

@@ -695,6 +695,7 @@ const ClaimReview: React.FC = () => {
                             onClick={() => handleView(doc.id, doc.mimeType)}
                             className="text-blue-600 hover:text-blue-700 p-1 rounded hover:bg-blue-50 transition-colors"
                             title="Open"
+                            aria-label="view-document"
                           >
                             <Eye className="h-4 w-4" />
                           </button>
@@ -703,6 +704,7 @@ const ClaimReview: React.FC = () => {
                           onClick={() => handleDownload(doc.id, doc.originalName)}
                           className="text-blue-600 hover:text-blue-700 p-1 rounded hover:bg-blue-50 transition-colors"
                           title="Download"
+                          aria-label="download-document"
                         >
                           <Download className="h-4 w-4" />
                         </button>
@@ -953,6 +955,7 @@ const ClaimReview: React.FC = () => {
             <button
               className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
               onClick={closeModal}
+              aria-label="close-modal"
             >
               <X className="h-5 w-5" />
             </button>
@@ -1099,7 +1102,7 @@ const ClaimReview: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/40" onClick={closeLineModal} />
           <div className="relative bg-white rounded-xl shadow-xl max-w-md w-full p-6">
-            <button className="absolute top-4 right-4 text-gray-400 hover:text-gray-600" onClick={closeLineModal}>
+            <button className="absolute top-4 right-4 text-gray-400 hover:text-gray-600" onClick={closeLineModal} aria-label="close-modal">
               <X className="h-5 w-5" />
             </button>
             <h3 className="text-lg font-semibold text-gray-900 mb-1">

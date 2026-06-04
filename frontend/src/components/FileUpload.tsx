@@ -89,6 +89,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
                 className="ml-2 text-gray-400 hover:text-red-500 transition-colors"
                 onClick={(e) => { e.stopPropagation(); removeFile(index) }}
                 data-testid={`remove-file-${index}`}
+                aria-label={`remove-file-${index}`}
               >
                 <X className="h-4 w-4" />
               </button>
