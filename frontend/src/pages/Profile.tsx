@@ -265,6 +265,8 @@ const Profile: React.FC = () => {
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                 onClick={() => setShowCurrentPwd(!showCurrentPwd)}
                 tabIndex={-1}
+                data-testid="toggle-current-password-visibility"
+                aria-label="toggle-current-password-visibility"
               >
                 {showCurrentPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
@@ -290,6 +292,8 @@ const Profile: React.FC = () => {
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                 onClick={() => setShowNewPwd(!showNewPwd)}
                 tabIndex={-1}
+                data-testid="toggle-new-password-visibility"
+                aria-label="toggle-new-password-visibility"
               >
                 {showNewPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
@@ -368,7 +372,8 @@ const Profile: React.FC = () => {
                   aria-checked={prefs[key]}
                   disabled={savingPrefs}
                   onClick={() => handleTogglePref(key)}
-                  data-testid="notif-pref-toggle"
+                  data-testid={`notif-pref-${key}-toggle`}
+                  aria-label={`toggle-${label}`}
                   className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none ${
                     prefs[key] ? 'bg-blue-600' : 'bg-gray-200'
                   } ${savingPrefs ? 'opacity-50' : ''}`}
