@@ -79,42 +79,49 @@ const FinanceDashboard: React.FC = () => {
 
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <StatCard
-          title="Pending Payouts"
-          value={pending.length}
-          icon={Clock}
-          iconColor="text-amber-600"
-          iconBg="bg-amber-50"
-        />
-        <StatCard
-          title="Processed Today"
-          value={paidToday.length}
-          icon={CheckCircle}
-          iconColor="text-green-600"
-          iconBg="bg-green-50"
-        />
-        <StatCard
-          title="Paid This Month"
-          value={formatCurrency(totalPaidThisMonth)}
-          icon={TrendingUp}
-          iconColor="text-blue-600"
-          iconBg="bg-blue-50"
-        />
+        <div data-testid="pending-payouts-card">
+          <StatCard
+            title="Pending Payouts"
+            value={pending.length}
+            icon={Clock}
+            iconColor="text-amber-600"
+            iconBg="bg-amber-50"
+          />
+        </div>
+        <div data-testid="processed-today-card">
+          <StatCard
+            title="Processed Today"
+            value={paidToday.length}
+            icon={CheckCircle}
+            iconColor="text-green-600"
+            iconBg="bg-green-50"
+          />
+        </div>
+        <div data-testid="paid-this-month-card">
+          <StatCard
+            title="Paid This Month"
+            value={formatCurrency(totalPaidThisMonth)}
+            icon={TrendingUp}
+            iconColor="text-blue-600"
+            iconBg="bg-blue-50"
+          />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Pending payouts */}
-        <div className="card">
+        <div className="card" data-testid="pending-payouts-section">
           <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
             <div>
               <h2 className="text-base font-semibold text-gray-900">Pending Payouts</h2>
               <p className="text-xs text-gray-500 mt-0.5">
-                Total: {formatCurrency(totalPending)}
+                Total: <span data-testid="total-pending-value">{formatCurrency(totalPending)}</span>
               </p>
             </div>
             <Link
               to="/finance/payouts"
               className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
+              data-testid="view-all-payouts-link"
             >
               View all <ChevronRight className="h-4 w-4" />
             </Link>
@@ -133,18 +140,18 @@ const FinanceDashboard: React.FC = () => {
                   key={claim.id}
                   to={`/finance/payouts/${claim.id}`}
                   className="flex items-center justify-between px-5 py-3.5 hover:bg-gray-50 transition-colors"
-                  data-testid="payout-row"
+                  data-testid={`pending-payout-${claim.id}`}
                 >
                   <div>
-                    <p className="text-sm font-medium text-blue-600 hover:underline">{claim.claimNumber}</p>
-                    <p className="text-xs text-gray-500 mt-0.5">
+                    <p className="text-sm font-medium text-blue-600 hover:underline" data-testid={`pending-claim-number-${claim.id}`}>{claim.claimNumber}</p>
+                    <p className="text-xs text-gray-500 mt-0.5" data-testid={`pending-patient-name-${claim.id}`}>
                       {claim.patient
                         ? `${claim.patient.firstName} ${claim.patient.lastName}`
                         : 'Patient'}
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-bold text-green-600">
+                    <p className="text-sm font-bold text-green-600" data-testid={`pending-payout-amount-${claim.id}`}>
                       {formatCurrency(claim.adjustedAmount ?? claim.reimbursable ?? 0)}
                     </p>
                     <StatusBadge status={claim.status} />
@@ -165,7 +172,7 @@ const FinanceDashboard: React.FC = () => {
         </div>
 
         {/* Recent paid */}
-        <div className="card">
+        <div className="card" data-testid="recent-payments-section">
           <div className="px-5 py-4 border-b border-gray-100">
             <h2 className="text-base font-semibold text-gray-900">Recent Payments</h2>
           </div>
@@ -183,18 +190,18 @@ const FinanceDashboard: React.FC = () => {
                   key={claim.id}
                   to={`/finance/payouts/${claim.id}`}
                   className="flex items-center justify-between px-5 py-3.5 hover:bg-gray-50 transition-colors"
-                  data-testid="recent-payout-row"
+                  data-testid={`recent-payout-${claim.id}`}
                 >
                   <div>
-                    <p className="text-sm font-medium text-blue-600 hover:underline">{claim.claimNumber}</p>
-                    <p className="text-xs text-gray-500 mt-0.5">
+                    <p className="text-sm font-medium text-blue-600 hover:underline" data-testid={`recent-claim-number-${claim.id}`}>{claim.claimNumber}</p>
+                    <p className="text-xs text-gray-500 mt-0.5" data-testid={`recent-paid-date-${claim.id}`}>
                       {claim.payout
                         ? format(new Date(claim.payout.paidAt), 'MMM d, yyyy')
                         : '—'}
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-bold text-teal-600">
+                    <p className="text-sm font-bold text-teal-600" data-testid={`recent-payout-amount-${claim.id}`}>
                       {formatCurrency(claim.payout?.amount ?? claim.reimbursable ?? 0)}
                     </p>
                     {claim.payout?.paymentRef && (

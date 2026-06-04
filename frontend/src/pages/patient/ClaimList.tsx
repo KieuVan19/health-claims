@@ -179,6 +179,7 @@ const ClaimList: React.FC = () => {
               onClick={handleClearFilters}
               className="btn-secondary px-3 shrink-0 text-gray-500 hover:text-red-500"
               title="Clear filters"
+              data-testid="clear-claim-filters-btn"
             >
               <X className="h-4 w-4" />
             </button>
@@ -232,21 +233,22 @@ const ClaimList: React.FC = () => {
                         <Link
                           to={`/patient/claims/${claim.id}`}
                           className="font-medium text-blue-600 hover:text-blue-800 hover:underline"
+                          data-testid={`claim-number-link-${claim.id}`}
                         >
                           {claim.claimNumber}
                         </Link>
                       </td>
-                      <td className="table-cell">{CLAIM_TYPE_LABELS[claim.type]}</td>
+                      <td className="table-cell" data-testid={`claim-type-${claim.id}`}>{CLAIM_TYPE_LABELS[claim.type]}</td>
                       <td className="table-cell">
                         <StatusBadge status={claim.status as ClaimStatus} patientView />
                       </td>
-                      <td className="table-cell text-gray-600">
+                      <td className="table-cell text-gray-600" data-testid={`incident-date-${claim.id}`}>
                         {format(new Date(claim.incidentDate), 'MMM d, yyyy')}
                       </td>
-                      <td className="table-cell text-right font-medium">
+                      <td className="table-cell text-right font-medium" data-testid={`total-amount-${claim.id}`}>
                         {formatCurrency(claim.totalAmount)}
                       </td>
-                      <td className="table-cell text-right">
+                      <td className="table-cell text-right" data-testid={`reimbursable-${claim.id}`}>
                         {claim.reimbursable !== undefined ? (
                           <span className="text-green-600 font-medium">
                             {formatCurrency(claim.reimbursable)}
