@@ -32,4 +32,10 @@ export const config = {
     ackDays: parseInt(process.env['SLA_ACK_DAYS'] ?? '10', 10),
     warningWindowDays: parseInt(process.env['SLA_WARNING_WINDOW_DAYS'] ?? '3', 10),
   },
+
+  grafana: {
+    lokiUrl: process.env['GRAFANA_LOKI_URL'] ?? '',
+    lokiUser: process.env['GRAFANA_LOKI_USER'] ?? '',
+    lokiPassword: process.env['GRAFANA_LOKI_PASSWORD'] ?? '',
+  },
 };

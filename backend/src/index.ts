@@ -10,6 +10,8 @@ import swaggerUi from 'swagger-ui-express';
 import { config } from './config';
 import { errorHandler } from './middleware/error';
 import { swaggerSpec } from './swagger';
+import { logger } from './utils/logger';
+import { register, metricsMiddleware } from './utils/metrics';
 
 import authRouter from './routes/auth';
 import usersRouter from './routes/users';
@@ -40,6 +42,9 @@ app.use(
 
 // Logging
 app.use(morgan(config.isDevelopment ? 'dev' : 'combined'));
+
+// Metrics
+app.use(metricsMiddleware);
 
 // Body parsing
 app.use(express.json());
@@ -82,6 +87,12 @@ app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// Prometheus metrics
+app.get('/metrics', async (_req, res) => {
+  res.set('Content-Type', register.contentType);
+  res.end(await register.metrics());
+});
+
 // 404 handler
 app.use((_req, res) => {
   res.status(404).json({ error: 'Route not found' });
@@ -92,8 +103,8 @@ app.use(errorHandler);
 
 // Start server
 app.listen(config.port, () => {
-  console.log(`[Server] Running on port ${config.port} in ${config.nodeEnv} mode`);
-  console.log(`[Server] API docs: http://localhost:${config.port}/api/docs`);
+  logger.info(`[Server] Running on port ${config.port} in ${config.nodeEnv} mode`);
+  logger.info(`[Server] API docs: http://localhost:${config.port}/api/docs`);
 });
 
 export default app;
