@@ -17,3 +17,9 @@ services:
         value: ./uploads
       - key: MAX_FILE_SIZE
         value: 10485760
+      - key: GRAFANA_LOKI_URL
+        value: https://logs-prod-020.grafana.net
+      - key: GRAFANA_LOKI_USER
+        value: "1691557"
+      - key: GRAFANA_LOKI_PASSWORD
+        sync: false

@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { Prisma } from '@prisma/client';
 import { ZodError } from 'zod';
 import { JsonWebTokenError, TokenExpiredError } from 'jsonwebtoken';
+import { logger } from '../utils/logger';
 
 export function errorHandler(
   err: unknown,
@@ -9,7 +10,13 @@ export function errorHandler(
   res: Response,
   _next: NextFunction
 ): void {
-  console.error('[Error]', err);
+  logger.error('API error', {
+    message: err instanceof Error ? err.message : String(err),
+    stack: err instanceof Error ? err.stack : undefined,
+    method: _req.method,
+    url: _req.originalUrl,
+    prismaCode: err instanceof Prisma.PrismaClientKnownRequestError ? err.code : undefined,
+  });
 
   // Prisma known request errors
   if (err instanceof Prisma.PrismaClientKnownRequestError) {
